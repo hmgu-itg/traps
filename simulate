@@ -1,0 +1,210 @@
+#!/usr/bin/env Rscript
+library("optparse")
+library(data.table)
+options(warn=1)
+
+check_anc_distr=function(anc.distr){
+    if(length(anc.distr)==1){
+        if(anc.distr>1 | anc.distr<0){stop(paste("Proportion of Europeans (",anc.distr,") is out of bounds."))}
+        eur=anc.distr
+        anc.distr=rep((1-anc.distr)/4, 4)
+        anc.distr=c(anc.distr[1:3], eur, anc.distr[4])
+    }
+    else{
+        if(sum(anc.distr)!=1 | any(anc.distr>1) | any(anc.distr<0) |length(anc.distr)!=5){
+            stop(paste("Ancestry distribution should be a vector of 5 probabilities summing to 1.\nYou provided",
+                      paste(anc.distr, collapse=" + "), "=", sum(anc.distr)))
+        }
+    }
+    return(anc.distr)
+}
+
+sim_genos= function(af, n){
+    genos=as.data.table(t(as.data.table(lapply(unlist(af), function(x){p=x;q=1-x;sample(0:2, n, prob=c(q*q, 2*p*q, p*p), replace=T)}))))
+    sgenos=genos[,lapply(.SD, function(x){(x-2*af)/sqrt(2*af*(1-af))})]
+    return(list(genos, sgenos))
+}
+
+inform=function(...){
+    cat(paste("[INFO]", ..., "\n", collapse=" "))
+    flush.console()
+}
+
+simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr, outfn){
+    TOTNUMPOP=5
+    anc.distr=check_anc_distr(anc.distr)
+    if(her>1 | her <= 0){stop(paste("Heritability (", her, ") is out of bounds."))}
+    if(prop.heter>1 | prop.heter < 0){stop(paste("Proportion of heterogeneous effect sizes (", prop.heter, ") is out of bounds."))}
+    if(n.variants <= 0){stop(paste("Number of variants (", n.variants, ") is negative or null."))}
+    if(n.samples <= 0){stop(paste("Number of samples (", n.variants, ") is negative or null."))}
+
+    # the real number of variants we will need
+    M=round((1-prop.heter+TOTNUMPOP*prop.heter)*n.variants)
+    inform("Simulating", M, "variants given number of causal variants", n.variants, "and proportion heterogeneous", prop.heter)
+
+    inform("Reading 1000 Genomes frequencies and sampling randomly ...")
+    kgfreq=fread("/storage/hmgu/projects/TransAncPRS_Andrew/1000GP_Phase3_freq.txt")
+    kgfreq=as.matrix(kgfreq)
+    kgfreq[kgfreq>0.5]=1-kgfreq[kgfreq>0.5]
+    kgfreq=as.data.table(kgfreq)
+    toselect=sample(nrow(kgfreq), M)
+    inform("Done.")
+
+    # the first (1-p)n SNPs will be non-heterogeneous
+    M.snp.hom=round((1-prop.heter)*n.variants)
+    snp.hom=toselect[1:M.snp.hom]
+    snp.hom.maf=apply(kgfreq[snp.hom], 1, mean)
+
+    betas.homogenous.norm=rnorm(M.snp.hom)
+    sum.beta2=sum(betas.homogenous.norm*betas.homogenous.norm)
+    coef=sqrt((1-prop.heter)*her/sum.beta2)
+    betas.homogenous.norm=coef*betas.homogenous.norm
+    #inform(var(betas.homogenous.norm)*M.snp.hom)
+    #inform(mean(betas.homogenous.norm))
+    all.snp.maf=snp.hom.maf
+    all.snp.beta=betas.homogenous.norm
+
+    POPPERSUP=ncol(kgfreq)/TOTNUMPOP
+    beta.matrix=NULL
+    for(i in 0:(TOTNUMPOP-1)){
+    M.snp.het=n.variants*prop.heter
+    snp.het=toselect[M.snp.hom+(1:M.snp.het)]
+    snp.het.maf=apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean)
+    betas.het.norm=rnorm(M.snp.het)
+    sum.beta2=sum(betas.het.norm*betas.het.norm)
+    coef=sqrt(prop.heter*her/sum.beta2)
+    betas.het.norm=coef*betas.het.norm
+    all.snp.maf=c(all.snp.maf, snp.het.maf)
+    all.snp.beta=c(all.snp.beta, betas.het.norm)
+    inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
+           mean(c(betas.homogenous.norm, betas.het.norm)), "\ttotal heritability explained:", var(c(betas.homogenous.norm, betas.het.norm))*n.variants)
+    betavec=c(betas.homogenous.norm, rep(0, M.snp.het*i), betas.het.norm, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
+    if(is.null(beta.matrix)){beta.matrix=data.table(betavec)}else{
+        beta.matrix=cbind(beta.matrix, betavec)
+        }
+    }
+
+    beta.allelic=setDT(lapply(beta.matrix, function(x){x*sqrt(2*all.snp.maf*(1-all.snp.maf))}))
+    beta.matrix=as.matrix(beta.matrix)
+    out=NULL
+    gi=NULL
+    ph=NULL;
+    for(i in 1:ncol(beta.matrix)){
+        ## total number per ancestry group
+        tosimulate=anc.distr[i]*n.samples
+        ## equal number of samples per pop within group
+        perpop=tosimulate/POPPERSUP
+        genos=lapply(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)], function(y){sim_genos(y, perpop)})
+        sgenos=setDT(unlist(lapply(genos, `[[`, 2), recursive = FALSE))
+        print(dim(sgenos))
+        print(dim(beta.matrix))
+        g=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix[,i])}))
+        out=c(out, genos)
+        gi=c(gi,g)
+        inform("variance in the genetic component of the phenotype for ancestry group",i,"is", var(g), ", should be equal to heritability.")
+        phi=g+rnorm(length(g), mean=0, sd=sqrt(1-(var(g))))
+        inform("Variance of the simulated phenotype for ancestry group",i,"is", var(phi), "which should be close to 1.")
+        ph=c(ph,phi)
+
+    }
+
+    sampperpop=as.numeric(lapply(out, function(x){ncol(x[[1]])}))
+    sgenos=setDT(unlist(lapply(out, `[[`, 2), recursive = FALSE))
+    genos=setDT(unlist(lapply(out, `[[`, 1), recursive = FALSE))
+    snpnames=paste0("rs", 1:nrow(genos))
+    snames=paste("SAMPLE", unlist(lapply(sampperpop, function(x){1:x})), rep(colnames(kgfreq), sampperpop), sep=".")
+    setnames(genos, snames)
+    genotype.table=c("A\tA", "A\tG", "G\tG")
+    genos[,(snames) := lapply(.SD, function(x){genotype.table[x+1]})]
+    genos=data.table(CHR=sample(1:22, nrow(genos), replace=T), SNP=snpnames, CM=rep(0, nrow(genos)), POS=sample(1:10000000, nrow(genos)), genos)
+    inform("Writing tped...")
+    fwrite(genos, paste0(outfn, ".tped"), sep="\t", col.names=F, quote=F)
+    inform("Writing tfam...")
+    fwrite(
+        data.table(FID=snames,
+                   IID=snames,
+                   rep(0, length(snames)),
+                   rep(0, length(snames)),
+                   sample(1:2, length(snames), replace=T),
+                   gi), paste0(outfn, ".tfam"), sep="\t", col.names=F, quote=F)
+    inform("Done.")
+    inform ("Repeating for an equal number of test samples...")
+    out=NULL
+    gi=NULL
+    ph=NULL
+    pp.towrite=NULL
+    popdict=c("AFR", "AMR", "EAS", "EUR", "SAS")
+    for(i in 1:ncol(beta.matrix)){
+        ## total number per ancestry group
+        tosimulate=anc.distr[i]*n.samples
+        ## equal number of samples per pop within group
+        perpop=tosimulate/POPPERSUP
+        pp.towrite=c(pp.towrite, perpop)
+        names(pp.towrite)[length(pp.towrite)]=popdict[i]
+        genos=lapply(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)], function(y){sim_genos(y, perpop)})
+        sgenos=setDT(unlist(lapply(genos, `[[`, 2), recursive = FALSE))
+        g=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix[,i])}))
+        out=c(out, genos)
+        gi=c(gi,g)
+        inform("variance in the genetic component of the phenotype for ancestry group",i,"is", var(g), ", should be equal to heritability.")
+        phi=g+rnorm(length(g), mean=0, sd=sqrt(1-(var(g))))
+        inform("Variance of the simulated phenotype for ancestry group",i,"is", var(phi), "which should be close to 1.")
+        ph=c(ph,phi)
+
+    }
+    fwrite(setDT(as.list(pp.towrite))[], "popsamples.txt", quote=F)
+
+    sampperpop=as.numeric(lapply(out, function(x){ncol(x[[1]])}))
+    sgenos=setDT(unlist(lapply(out, `[[`, 2), recursive = FALSE))
+    genos=setDT(unlist(lapply(out, `[[`, 1), recursive = FALSE))
+    snpnames=paste0("rs", 1:nrow(genos))
+    snames=paste("SAMPLE", unlist(lapply(sampperpop, function(x){1:x})), rep(colnames(kgfreq), sampperpop), sep=".")
+    setnames(genos, snames)
+    genotype.table=c("A\tA", "A\tG", "G\tG")
+    genos[,(snames) := lapply(.SD, function(x){genotype.table[x+1]})]
+    genos=data.table(CHR=sample(1:22, nrow(genos), replace=T), SNP=snpnames, CM=rep(0, nrow(genos)), POS=sample(1:10000000, nrow(genos)), genos)
+    inform("Writing tped...")
+    fwrite(genos, paste0(outfn, ".target.tped"), sep="\t", col.names=F, quote=F)
+    inform("Writing tfam...")
+    fwrite(
+        data.table(FID=snames,
+                   IID=snames,
+                   rep(0, length(snames)),
+                   rep(0, length(snames)),
+                   sample(1:2, length(snames), replace=T),
+                   gi), paste0(outfn, ".target.tfam"), sep="\t", col.names=F, quote=F)
+    inform("Done.")
+
+}
+
+option_list = list(
+  make_option(c("-n", "--num-variants"), type="integer", default=NULL,
+              help="Number of causal variants to simulate per cohort. The total number of variants simulated will be higher.", metavar="integer"),
+  make_option(c("-r", "--heritability"), type="numeric", default=NULL,
+                          help="Narrow-sense heritability of the simulated phenotype.", metavar="numeric"),
+  make_option(c("-s", "--num-samples"), type="integer", default=NULL,
+              help="Total number of samples to simulate.", metavar="integer"),
+  make_option(c("-p", "--prop-heter"), type="numeric", default=NULL,
+              help="Proportion of sites with heterogeneous effects. 1 - this proportion of variants will have the same effect across all populations.", metavar="numeric"),
+  make_option(c("-a", "--anc-af-distr"), type="character", default=NULL,
+              help="Comma-separated list of proportions to simulate from each ancestry group. Should be a vector of 5 probabilities and sum to 1. Alternatively, if this is only 1 probability, it is assumed to mean the proportion of EUR.", metavar="character"),
+    make_option(c("-o", "--out"), type="character",
+              help="output file prefix.", metavar="character")
+);
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+if (is.null(opt[["num-variants"]]) |
+    is.null(opt[["heritability"]]) |
+    is.null(opt[["num-samples"]]) |
+    is.null(opt[["prop-heter"]]) |
+    is.null(opt[["anc-af-distr"]]) |
+    is.null(opt[["out"]])
+  ) {
+  print_help(opt_parser)
+  stop("All arguments are compulsory.\n", call.=FALSE)
+}
+
+ancdist=as.numeric(strsplit(opt[["anc-af-distr"]], ",", fixed=T)[[1]])
+
+simulate_pointnormal(opt[["num-variants"]], opt[["heritability"]], opt[["num-samples"]], opt[["prop-heter"]], ancdist, opt[["out"]])
