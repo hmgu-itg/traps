@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
-library("optparse")
-library(data.table)
+suppressPackageStartupMessages(library("optparse"))
+suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages(library(gtx))
 options(warn=1)
-library(gtx)
 
 TOTNUMPOP=5
 POPPERSUP=4
@@ -92,7 +92,7 @@ check_anc_distr=function(anc.distr){
     return(anc.distr)
 }
 
-anc.distr=check_anc_distr(anc.distr)
+anc.distr=check_anc_distr(as.numeric(strsplit(opt[["anc-af-distr"]], ",", fixed=T)[[1]]))
 print(anc.distr)
 names(anc.distr)=c("AFR", "AMR", "EAS", "EUR", "SAS")
 
