@@ -19,7 +19,7 @@ RUN apt-get update
 RUN apt-get install -y r-base r-base-core
 RUN Rscript -e "install.packages(c('data.table', 'devtools'))"
 RUN Rscript -e "install.packages('sparklyr');devtools::install_github('tobyjohnson/gtx')"
-RUN Rscript -e "install.packages(c('optparse'))"
+RUN Rscript -e "install.packages(c('optparse', 'this.path'))"
 
 ##Plink
 WORKDIR /
@@ -34,9 +34,15 @@ WORKDIR /
 RUN wget -O Metasoft.zip https://hmgubox2.helmholtz-muenchen.de/index.php/s/24iZqWpeLRzZH2e/download
 RUN unzip Metasoft.zip
 
+## GIT
+ARG CACHEBUST=2
+
 ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
 #RUN git config --global hub.protocol https
 #RUN git config --global url."https://${GIT_ACCESS_TOKEN}@github.com".insteadOf "ssh://git@github.com"
 RUN git clone https://agilly:${GIT_ACCESS_TOKEN}@github.com/hmgu-itg/treps
+WORKDIR /treps
+RUN wget -O 1kg.tar.gz https://hmgubox2.helmholtz-muenchen.de/index.php/s/YnGW48YJwoJyHYc/download
+RUN tar -xvzf 1kg.tar.gz
 
 
