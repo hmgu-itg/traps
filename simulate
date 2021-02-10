@@ -49,7 +49,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     kgfreq[kgfreq>0.5]=1-kgfreq[kgfreq>0.5]
     kgfreq=as.data.table(kgfreq)
     toselect=sample(nrow(kgfreq), M)
-    inform("Done.")
+    inform("Done (", M, ").")
 
     # the first (1-p)n SNPs will be non-heterogeneous
     M.snp.hom=round((1-prop.heter)*n.variants)
