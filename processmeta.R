@@ -16,7 +16,7 @@ option_list = list(
   make_option(c("-p", "--p-thresh"), type="numeric", default=NULL,
               help="P-value threshold at which to select SNPs for inclusion in the PRS.", metavar="numeric"),
   make_option(c("-i", "--infile"), type="character", default=NULL,
-              help="Base file input (.target.add.traw and .target.tfam expected).", metavar="character"),
+              help="Base file input, .target.add.traw and .target.tfam expected.", metavar="character"),
     make_option(c("-o", "--out"), type="character",
               help="output file prefix.", metavar="character")
 );
@@ -132,7 +132,7 @@ cat(paste("Reading target association sumstats\n"))
 flush.console()
 popdat=list()
 for(p in unique(nmtbl$V1)){
-    if(file.exists(paste0(indir,"/",p,".target.assoc.linear"))){
+    if(file.exists(paste0(indir,"/",p,".target.qassoc"))){
             popdat[[p]]=fread(paste0(indir,"/",p,".target.qassoc"),select=c("SNP","BETA" ,"SE"))
     }
 }
