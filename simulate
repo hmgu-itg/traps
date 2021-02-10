@@ -87,8 +87,6 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         beta.matrix=cbind(beta.matrix, betavec)
         }
     }
-    print(dim(beta.matrix))
-    print(length(all.snp.maf))
     beta.allelic=setDT(lapply(beta.matrix, function(x){x*sqrt(2*all.snp.maf*(1-all.snp.maf))}))
     beta.matrix=as.matrix(beta.matrix)
     out=NULL
@@ -101,8 +99,6 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         perpop=tosimulate/POPPERSUP
         genos=lapply(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)], function(y){sim_genos(y, perpop)})
         sgenos=setDT(unlist(lapply(genos, `[[`, 2), recursive = FALSE))
-        print(dim(sgenos))
-        print(dim(beta.matrix))
         g=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix[,i])}))
         out=c(out, genos)
         gi=c(gi,g)
