@@ -69,7 +69,10 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     beta.matrix=NULL
     for(i in 0:(TOTNUMPOP-1)){
     M.snp.het=n.variants*prop.heter
-    snp.het=toselect[M.snp.hom+(1:M.snp.het)]
+    snp.het=numeric(0)
+    if(M.snp.het>0){
+      snp.het=toselect[M.snp.hom+(1:M.snp.het)]
+    }
     snp.het.maf=apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean)
     betas.het.norm=rnorm(M.snp.het)
     sum.beta2=sum(betas.het.norm*betas.het.norm)
