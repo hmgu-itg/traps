@@ -15,6 +15,8 @@ option_list = list(
               help="Comma-separated list of proportions to simulate from each ancestry group. Should be a vector of 5 probabilities and sum to 1. Alternatively, if this is only 1 probability, it is assumed to mean the proportion of EUR.", metavar="character"),
   make_option(c("-p", "--p-thresh"), type="numeric", default=NULL,
               help="P-value threshold at which to select SNPs for inclusion in the PRS.", metavar="numeric"),
+  make_option(c("-i", "--infile"), type="character", default=NULL,
+              help="Base file input (.target.add.traw and .target.tfam expected).", metavar="character"),
     make_option(c("-o", "--out"), type="character",
               help="output file prefix.", metavar="character")
 );
@@ -24,6 +26,7 @@ opt = parse_args(opt_parser);
 if (is.null(opt[["num-samples"]]) |
     is.null(opt[["anc-af-distr"]]) |
     is.null(opt[["p-thresh"]]) |
+    is.null(opt[["infile"]]) |
     is.null(opt[["out"]])
   ) {
   print_help(opt_parser)
@@ -40,7 +43,7 @@ if(opt[["p-thresh"]]<=0 | opt[["p-thresh"]]>1){
 }else{
   P_THRESHOLD=opt[["p-thresh"]]
 }
-
+infile=opt[["infile"]]
 indir="."
 cor.test.plus <- function(x, y) {
     x=cor.test(x,y)
@@ -93,14 +96,14 @@ check_anc_distr=function(anc.distr){
 }
 
 anc.distr=check_anc_distr(as.numeric(strsplit(opt[["anc-af-distr"]], ",", fixed=T)[[1]]))
-print(anc.distr)
 names(anc.distr)=c("AFR", "AMR", "EAS", "EUR", "SAS")
+print(anc.distr)
 
 ### MAIN
 cat(paste("Reading target additive dataset\n"))
 flush.console()
-target=fread(paste0(indir, "/test100k.target.add.traw"))
-ttfam=fread(paste0(indir, "/test100k.target.tfam"))
+target=fread(paste0(indir, "/",infile,".target.add.traw"))
+ttfam=fread(paste0(indir, "/",infile,".target.tfam"))
 
 toselect=c(2,7:ncol(target))
 target=target[,..toselect]
@@ -130,7 +133,7 @@ flush.console()
 popdat=list()
 for(p in unique(nmtbl$V1)){
     if(file.exists(paste0(indir,"/",p,".target.assoc.linear"))){
-            popdat[[p]]=fread(paste0(indir,"/",p,".target.assoc.linear"),select=c("SNP","BETA" ,"SE"))
+            popdat[[p]]=fread(paste0(indir,"/",p,".target.qassoc"),select=c("SNP","BETA" ,"SE"))
     }
 }
 
