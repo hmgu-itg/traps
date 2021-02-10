@@ -45,4 +45,4 @@ WORKDIR /treps
 RUN wget -O 1kg.tar.gz https://hmgubox2.helmholtz-muenchen.de/index.php/s/YnGW48YJwoJyHYc/download
 RUN tar -xvzf 1kg.tar.gz
 
-
+RUN apt install -y moreutils

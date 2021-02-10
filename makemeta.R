@@ -4,8 +4,8 @@ args=commandArgs(T)
 
 midfix=args[2]
 dir=args[1]
-ftoread=list.files(dir, paste0(midfix, ".assoc.linear$"))
-pops=sub(paste0(midfix, ".assoc.linear"), "", ftoread, fixed=T)
+ftoread=list.files(dir, paste0(midfix, ".qassoc$"))
+pops=sub(paste0(midfix, ".qassoc"), "", ftoread, fixed=T)
 
 nmtbl=read.table(text="CHB	EAS
 JPT	EAS
@@ -39,7 +39,7 @@ for(angroup in c(unique(nmtbl$V2), "TE")){
     if(angroup=="TE"){pops=nmtbl$V1}else{pops=unlist(nmtbl$V1[nmtbl$V2==angroup])}
     group.mtx=NULL
     for(p in pops){
-        fn=paste0(dir,"/", p, ".assoc.linear")
+        fn=paste0(dir,"/", p, ".qassoc")
         if(!file.exists(fn)){next}
         pdat=fread(fn,
                    select = c("SNP", "BETA", "SE"))
