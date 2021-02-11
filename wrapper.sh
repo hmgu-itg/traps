@@ -36,5 +36,5 @@ for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
 ./processmeta.R -p $pthr -a $anc -s $n -i $baseout -o snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out
 
 tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
-cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2 /transfer
+cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.txt snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2 /transfer
 
