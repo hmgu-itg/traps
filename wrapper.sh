@@ -38,3 +38,5 @@ for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
 tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
 cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.*txt snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2 /transfer
 
+sleep 5
+
