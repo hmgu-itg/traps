@@ -3,6 +3,7 @@
 # simulates 1000 causal variants, 0.4 heritability, 100k samples total, 80% of them European, and half of positions having heter effects between anc groups
 ## TODO add the lognormal model
 ## TODO add the Wu model (Andrew's favourite probably)
+
 nsnp=$1
 her=$2
 n=$3
@@ -11,6 +12,7 @@ anc=$5
 baseout=$6
 pthr=$7
 
+cd /treps
 baseout=test100k
 ./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout
 
