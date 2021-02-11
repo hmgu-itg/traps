@@ -35,7 +35,7 @@ RUN wget -O Metasoft.zip https://hmgubox2.helmholtz-muenchen.de/index.php/s/24iZ
 RUN unzip Metasoft.zip
 
 ## GIT
-ARG CACHEBUST=0
+ARG CACHEBUST=2
 
 ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
 #RUN git config --global hub.protocol https
