@@ -12,7 +12,7 @@ anc=$5
 baseout=$6
 pthr=$7
 
-cd /treps
+mkdir snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 baseout=test100k
 ./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout
 
