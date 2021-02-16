@@ -35,7 +35,7 @@ RUN wget -O Metasoft.zip https://hmgubox2.helmholtz-muenchen.de/index.php/s/24iZ
 RUN unzip Metasoft.zip
 
 ## GIT
-ARG CACHEBUST=8
+sudo apt install nano
 
 ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
 #RUN git config --global hub.protocol https
@@ -46,3 +46,6 @@ RUN wget -O 1kg.tar.gz https://hmgubox2.helmholtz-muenchen.de/index.php/s/YnGW48
 RUN tar -xvzf 1kg.tar.gz
 
 RUN apt install -y moreutils
+RUN mkdir /transfer
+RUN mkdir -p /gpfs/scratch/pn29li/ge64cig2/ge64cig2
+
