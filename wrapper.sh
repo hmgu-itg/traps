@@ -13,10 +13,12 @@ pthr=$7
 echo parameters $nsnp $her $n $propheter $anc $baseout $pthr
 
 if [ -z "$SCRATCH"]; then
-export SCRATCH=$(pwd)
+mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
+
+else
+ mkdir -p $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 fi
 
-mkdir -p $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 ./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout
 
 
@@ -42,6 +44,13 @@ for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
 
 tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
 cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.*txt snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2 /transfer
+
+if [ -z "$SCRATCH"]; then
+ cd ../..
+ rm -r tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout
+else
+ rm -r $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout
+fi
 
 sleep 5
 
