@@ -12,7 +12,7 @@ baseout=$6
 pthr=$7
 echo parameters $nsnp $her $n $propheter $anc $baseout $pthr
 
-if [ -z "$SCRATCH"] then
+if [ -z "$SCRATCH"]; then
 export SCRATCH=$(pwd)
 fi
 
