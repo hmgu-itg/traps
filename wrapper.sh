@@ -11,6 +11,11 @@ anc=$5
 baseout=$6
 pthr=$7
 echo parameters $nsnp $her $n $propheter $anc $baseout $pthr
+
+if [ -z "$SCRATCH"] then
+export SCRATCH=$(pwd)
+fi
+
 mkdir -p $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 ./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout
 

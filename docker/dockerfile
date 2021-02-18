@@ -40,7 +40,7 @@ ARG CACHEBUST=1
 ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
 #RUN git config --global hub.protocol https
 #RUN git config --global url."https://${GIT_ACCESS_TOKEN}@github.com".insteadOf "ssh://git@github.com"
-RUN LOL=1 git clone https://agilly:${GIT_ACCESS_TOKEN}@github.com/hmgu-itg/treps
+RUN git clone https://agilly:${GIT_ACCESS_TOKEN}@github.com/hmgu-itg/treps
 WORKDIR /treps
 RUN wget -O 1kg.tar.gz https://hmgubox2.helmholtz-muenchen.de/index.php/s/YnGW48YJwoJyHYc/download
 RUN tar -xvzf 1kg.tar.gz
