@@ -12,7 +12,7 @@ baseout=$6
 pthr=$7
 echo parameters $nsnp $her $n $propheter $anc $baseout $pthr
 
-if [ -z "$SCRATCH"]; then
+if [ -z "$SCRATCH" ]; then
 mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 
 else
@@ -45,7 +45,7 @@ for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
 tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
 cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.*txt snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2 /transfer
 
-if [ -z "$SCRATCH"]; then
+if [ -z "$SCRATCH" ]; then
  cd ../..
  rm -r tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout
 else
