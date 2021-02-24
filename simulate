@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+print("lol")
 library("optparse")
 library(data.table)
 library(this.path)
@@ -39,6 +40,16 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     if(n.variants <= 0){stop(paste("Number of variants (", n.variants, ") is negative or null."))}
     if(n.samples <= 0){stop(paste("Number of samples (", n.variants, ") is negative or null."))}
 
+    M.snp.het=n.variants*prop.heter
+    if(M.snp.het%%1 != 0){
+      #the proportion does not yield int number of SNPs, we change it to the closest divisor
+      newM=round(M.snp.het)
+      prop.heter=newM/n.variants
+      inform("Warning: the proportions selected produce", M.snp.het, "variants. Using prop heter =", prop.heter, "instead, giving", newM)
+      M.snp.het=newM
+    }
+
+
     # the real number of variants we will need
     M=round((1-prop.heter+TOTNUMPOP*prop.heter)*n.variants)
     inform("Simulating", M, "variants given number of causal variants", n.variants, "and proportion heterogeneous", prop.heter)
@@ -68,7 +79,6 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     POPPERSUP=ncol(kgfreq)/TOTNUMPOP
     beta.matrix=NULL
     for(i in 0:(TOTNUMPOP-1)){
-    M.snp.het=n.variants*prop.heter
     snp.het=numeric(0)
     if(M.snp.het>0){
       snp.het=toselect[M.snp.hom+(1:M.snp.het)]
