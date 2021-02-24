@@ -45,7 +45,8 @@ RUN git clone https://agilly:${GIT_ACCESS_TOKEN}@github.com/hmgu-itg/treps
 WORKDIR /treps
 RUN wget -O 1kg.tar.gz https://hmgubox2.helmholtz-muenchen.de/index.php/s/YnGW48YJwoJyHYc/download
 RUN tar -xvzf 1kg.tar.gz
-
+RUN chown root:root 1000GP_Phase3_freq.txt
+RUN chmod a+r 1000GP_Phase3_freq.txt
 RUN apt install -y moreutils
 RUN mkdir /transfer
 RUN mkdir -p /gpfs/scratch/pn29li/ge64cig2/ge64cig2
