@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-print("lol")
 library("optparse")
 library(data.table)
 library(this.path)
