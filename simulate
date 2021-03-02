@@ -106,6 +106,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         tosimulate=anc.distr[i]*n.samples
         ## equal number of samples per pop within group
         perpop=tosimulate/POPPERSUP
+        gc()
         genos=lapply(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)], function(y){sim_genos(y, perpop)})
         sgenos=setDT(unlist(lapply(genos, `[[`, 2), recursive = FALSE))
         g=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix[,i])}))
@@ -151,6 +152,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         perpop=tosimulate/POPPERSUP
         pp.towrite=c(pp.towrite, perpop)
         names(pp.towrite)[length(pp.towrite)]=popdict[i]
+        gc()
         genos=lapply(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)], function(y){sim_genos(y, perpop)})
         sgenos=setDT(unlist(lapply(genos, `[[`, 2), recursive = FALSE))
         g=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix[,i])}))
