@@ -36,7 +36,7 @@ RUN unzip Metasoft.zip
 
 ## GIT
 RUN apt install -y nano
-ARG CACHEBUST=8
+ARG CACHEBUST=9
 
 ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
 #RUN git config --global hub.protocol https

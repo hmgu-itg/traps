@@ -12,6 +12,11 @@ baseout=$6
 pthr=$7
 echo parameters $nsnp $her $n $propheter $anc $baseout $pthr
 
+if [[ -s "/transfer/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out.prs.fit.txt" ]]; then
+  echo "File /transfer/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out.prs.fit.txt exists, nothing to do."
+  exit 0
+fi
+
 if [ -z "$SCRATCH" ]; then
 mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 
@@ -22,8 +27,8 @@ fi
 ./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout
 
 
-for pop in GWD LWK MSL YRI CLM MXL PEL PUR CDX CHB JPT KHV FIN GBR IBS TSI BEB GIH PJL STU; do 
-  awk '{if(!($1~/'$pop'/)){$NF=-9}}1' 'OFS=\t' $baseout.tfam > $pop.tfam; 
+for pop in GWD LWK MSL YRI CLM MXL PEL PUR CDX CHB JPT KHV FIN GBR IBS TSI BEB GIH PJL STU; do
+  awk '{if(!($1~/'$pop'/)){$NF=-9}}1' 'OFS=\t' $baseout.tfam > $pop.tfam;
   plink --tped $baseout.tped --tfam $pop.tfam --allow-no-sex --assoc --out $pop
   awk '{if(!($1~/'$pop'/)){$NF=-9}}1' 'OFS=\t' $baseout.target.tfam > $pop.target.tfam
   plink --tped $baseout.target.tped --tfam $pop.target.tfam --allow-no-sex --assoc --out $pop.target
@@ -53,4 +58,3 @@ else
 fi
 
 sleep 5
-
