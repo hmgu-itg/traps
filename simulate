@@ -21,7 +21,10 @@ check_anc_distr=function(anc.distr){
 }
 
 sim_genos= function(af, n){
-    genos=as.data.table(t(as.data.table(lapply(unlist(af), function(x){p=x;q=1-x;sample(0:2, n, prob=c(q*q, 2*p*q, p*p), replace=T)}))))
+    genos=as.data.table(t(as.data.table(lapply(unlist(af), function(x){
+        p=x;
+        q=1-x;
+        sample(0:2, n, prob=c(q*q, 2*p*q, p*p), replace=T)}))))
     sgenos=genos[,lapply(.SD, function(x){(x-2*af)/sqrt(2*af*(1-af))})]
     return(list(genos, sgenos))
 }
@@ -64,7 +67,10 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     # the first (1-p)n SNPs will be non-heterogeneous
     M.snp.hom=round((1-prop.heter)*n.variants)
     snp.hom=toselect[1:M.snp.hom]
-    snp.hom.maf=apply(kgfreq[snp.hom], 1, mean)
+        POPPERSUP=ncol(kgfreq)/TOTNUMPOP
+    afcoef=rep(anc.distr/POPPERSUP, each=POPPERSUP)
+    #snp.hom.maf=apply(kgfreq[snp.hom], 1, mean)
+    snp.hom.maf=apply(kgfreq[toselect], 1, function(x){sum(afcoef*x)})
 
     betas.homogenous.norm=rnorm(M.snp.hom)
     sum.beta2=sum(betas.homogenous.norm*betas.homogenous.norm)
@@ -96,7 +102,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         beta.matrix=cbind(beta.matrix, betavec)
         }
     }
-    beta.allelic=setDT(lapply(beta.matrix, function(x){x*sqrt(2*all.snp.maf*(1-all.snp.maf))}))
+    beta.allelic=setDT(lapply(beta.matrix, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
     beta.matrix=as.matrix(beta.matrix)
     out=NULL
     gi=NULL
@@ -184,7 +190,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
                    rep(0, length(snames)),
                    rep(0, length(snames)),
                    sample(1:2, length(snames), replace=T),
-                   gi), paste0(outfn, ".target.tfam"), sep="\t", col.names=F, quote=F)
+                   ph), paste0(outfn, ".target.tfam"), sep="\t", col.names=F, quote=F)
     inform("Done.")
 
 }
