@@ -143,7 +143,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
                    rep(0, length(snames)),
                    rep(0, length(snames)),
                    sample(1:2, length(snames), replace=T),
-                   gi), paste0(outfn, ".tfam"), sep="\t", col.names=F, quote=F)
+                   ph), paste0(outfn, ".tfam"), sep="\t", col.names=F, quote=F)
     inform("Done.")
     inform ("Repeating for an equal number of test samples...")
     out=NULL
