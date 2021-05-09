@@ -70,7 +70,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         POPPERSUP=ncol(kgfreq)/TOTNUMPOP
     afcoef=rep(anc.distr/POPPERSUP, each=POPPERSUP)
     #snp.hom.maf=apply(kgfreq[snp.hom], 1, mean)
-    snp.hom.maf=apply(kgfreq[toselect], 1, function(x){sum(afcoef*x)})
+    snp.hom.maf=apply(kgfreq[snp.hom], 1, function(x){sum(afcoef*x)})
 
     betas.homogenous.norm=rnorm(M.snp.hom)
     sum.beta2=sum(betas.homogenous.norm*betas.homogenous.norm)
