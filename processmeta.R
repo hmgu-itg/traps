@@ -158,7 +158,7 @@ for(p in unique(nmtbl$V1)){
     totest[, (toconvert) := lapply(.SD, as.numeric), .SDcols = toconvert]
     totest=totest[P<P_THRESHOLD,]
     gtxs=grs.summary(totest$mvbeta, totest$beta, totest$se, perpop)
-    add=data.table(PRS=p, target=p, method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+    add=data.table(PRS=p, target=p, nsnp=nrow(totest), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
     resul=rbindlist(list(resul, add), use.names=T)
     ## direct
     cat(paste("\t\t Ancestry-specific, direct method", p,"\n"))
@@ -175,6 +175,7 @@ for(p in unique(nmtbl$V1)){
     add=cor.test.plus(prs$prs, prs$V6)
     add$PRS=p
     add$target=p
+    add$nsnp=nrow(m)
     add$varex=add$cor*add$cor
     add$method="direct"
     resul=rbindlist(list(resul, add), use.names=T)
@@ -201,6 +202,7 @@ for (angroup in c("AFR", "AMR", "EAS", "EUR", "SAS", "TE")){
         add=cor.test.plus(prs$prs.V1, prs$V6)
         add$PRS=angroup
         add$target=p
+        add$nsnp=nrow(ancmeta) 
         add$method="direct"
         add$varex=add$cor*add$cor
         if(is.null(resul)){resul=add}else{resul=rbind(resul,add)}
@@ -216,7 +218,7 @@ for (angroup in c("AFR", "AMR", "EAS", "EUR", "SAS", "TE")){
 
         ancmeta.pop=merge(ancmeta, popdat[[p]], all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
         gtxs=grs.summary(ancmeta.pop$BETA_FE, ancmeta.pop$BETA, ancmeta.pop$SE, perpop)
-        add=data.table(PRS=angroup, target=p, method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+        add=data.table(PRS=angroup, target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
         resul=rbindlist(list(resul, add), use.names=T)
 
     }
