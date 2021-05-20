@@ -72,15 +72,25 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     #snp.hom.maf=apply(kgfreq[snp.hom], 1, mean)
     snp.hom.maf=apply(kgfreq[snp.hom], 1, function(x){sum(afcoef*x)})
 
+    # pointnormal effect sizes
     betas.homogenous.norm=rnorm(M.snp.hom)
     sum.beta2=sum(betas.homogenous.norm*betas.homogenous.norm)
     coef=sqrt((1-prop.heter)*her/sum.beta2)
     betas.homogenous.norm=coef*betas.homogenous.norm
+
+    #lognormal effect sizes
+    ln.sigma=0.8
+    ln.mu=-log10(M.snp.hom)
+    ln.beta2=10^(rnorm(M.snp.hom, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
+    ln.beta2=ln.beta2*(1-prop.heter)*her/sum(beta2)
+    beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.hom,replace=T)
     #inform(var(betas.homogenous.norm)*M.snp.hom)
     #inform(mean(betas.homogenous.norm))
     all.snp.maf=snp.hom.maf
     all.snp.beta=betas.homogenous.norm
-
+    beta.ln.hom=beta.ln
+    all.snp.beta.ln=beta.ln
+    
     POPPERSUP=ncol(kgfreq)/TOTNUMPOP
     beta.matrix=NULL
     for(i in 0:(TOTNUMPOP-1)){
@@ -89,24 +99,51 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
       snp.het=toselect[M.snp.hom+(1:M.snp.het)]
     }
     snp.het.maf=apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean)
+
+    #pointnormal model
     betas.het.norm=rnorm(M.snp.het)
     sum.beta2=sum(betas.het.norm*betas.het.norm)
     coef=sqrt(prop.heter*her/sum.beta2)
     betas.het.norm=coef*betas.het.norm
+    
+    ## lognormal model
+    ln.mu=-log10(M.snp.het)
+    ln.beta2=10^(rnorm(M.snp.het, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
+    ln.beta2=ln.beta2*prop.heter*her/sum(beta2)
+    beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.het,replace=T)
+    beta.ln.het=beta.ln
+    
     all.snp.maf=c(all.snp.maf, snp.het.maf)
     all.snp.beta=c(all.snp.beta, betas.het.norm)
+    all.snp.beta.ln=c(all.snp.beta.ln, beta.ln)
+    
     inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
-           mean(c(betas.homogenous.norm, betas.het.norm)), "\ttotal heritability explained:", var(c(betas.homogenous.norm, betas.het.norm))*n.variants)
+           mean(c(betas.homogenous.norm, betas.het.norm)), "\ttotal heritability explained (pointnormal):", var(c(betas.homogenous.norm, betas.het.norm))*n.variants)
+    inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
+                  mean(all.snp.beta.ln), "\ttotal heritability explained (lognormal):", var(all.snp.beta.ln)*n.variants)
+
     betavec=c(betas.homogenous.norm, rep(0, M.snp.het*i), betas.het.norm, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
+    betavec.ln=c(beta.ln.hom, rep(0, M.snp.het*i), betas.ln.het, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
     if(is.null(beta.matrix)){beta.matrix=data.table(betavec)}else{
         beta.matrix=cbind(beta.matrix, betavec)
         }
     }
     beta.allelic=setDT(lapply(beta.matrix, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
     beta.matrix=as.matrix(beta.matrix)
+
+    if(is.null(beta.matrix.ln)){beta.matrix.ln=data.table(betavec.ln)}else{
+        beta.matrix.ln=cbind(beta.matrix.ln, betavec.ln)
+        }
+    }
+    beta.allelic.ln=setDT(lapply(beta.matrix.ln, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
+    beta.matrix.ln=as.matrix(beta.matrix.ln)
+
+
     out=NULL
     gi=NULL
+    gi.ln=NULL
     ph=NULL;
+    ph.ln=NULL
     for(i in 1:ncol(beta.matrix)){
         ## total number per ancestry group
         tosimulate=anc.distr[i]*n.samples
@@ -116,14 +153,21 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         genos=lapply(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)], function(y){sim_genos(y, perpop)})
         sgenos=setDT(unlist(lapply(genos, `[[`, 2), recursive = FALSE))
         g=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix[,i])}))
+        g.ln=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix.ln[,i])}))
         out=c(out, genos)
         gi=c(gi,g)
-        inform("variance in the genetic component of the phenotype for ancestry group",i,"is", var(g), ", should be equal to heritability.")
+        gi.ln=c(gi.ln,g.ln)
+        inform("variance in the genetic component of the phenotype for ancestry group",i,"(pointnormal) is", var(g), ", should be equal to heritability.")
+        inform("variance in the genetic component of the phenotype for ancestry group",i,"(lognormal) is", var(g.ln), ", should be equal to heritability.")
         phi=g+rnorm(length(g), mean=0, sd=sqrt(1-(var(g))))
-        inform("Variance of the simulated phenotype for ancestry group",i,"is", var(phi), "which should be close to 1.")
+        phi.ln=g.ln+rnorm(length(g.ln), mean=0, sd=sqrt(1-(var(g.ln))))
+        inform("Variance of the simulated phenotype for ancestry group",i,"(pointnormal) is", var(phi), "which should be close to 1.")
+        inform("Variance of the simulated phenotype for ancestry group",i,"(lognormal) is", var(phi.ln), "which should be close to 1.")
         ph=c(ph,phi)
+        ph.ln=c(ph.ln, phi.ln)
 
     }
+    gc()
 
     sampperpop=as.numeric(lapply(out, function(x){ncol(x[[1]])}))
     sgenos=setDT(unlist(lapply(out, `[[`, 2), recursive = FALSE))
@@ -136,15 +180,26 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     genos=data.table(CHR=sample(1:22, nrow(genos), replace=T), SNP=snpnames, CM=rep(0, nrow(genos)), POS=sample(1:10000000, nrow(genos)), genos)
     inform("Writing tped...")
     fwrite(genos, paste0(outfn, ".tped"), sep="\t", col.names=F, quote=F)
-    inform("Writing tfam...")
+    inform("Writing tfam (pointnormal)...")
     fwrite(
         data.table(FID=snames,
                    IID=snames,
                    rep(0, length(snames)),
                    rep(0, length(snames)),
                    sample(1:2, length(snames), replace=T),
-                   ph), paste0(outfn, ".tfam"), sep="\t", col.names=F, quote=F)
+                   ph), paste0(outfn, ".pn.tfam"), sep="\t", col.names=F, quote=F)
+     inform("Writing tfam (lognormal)...")
+     fwrite(
+         data.table(FID=snames,
+                    IID=snames,
+                    rep(0, length(snames)),
+                    rep(0, length(snames)),
+                    sample(1:2, length(snames), replace=T),
+                    ph.ln), paste0(outfn, ".ln.tfam"), sep="\t", col.names=F, quote=F)
     inform("Done.")
+    inform("Writing betas...")
+    save(snpnames, beta.matrix, beta.matrix.ln, beta.allelic, beta.allelic.ln, kgfreq[toselect,], paste0(outfn, ".beta.rdata"))
+    gc()
     inform ("Repeating for an equal number of test samples...")
     out=NULL
     gi=NULL
@@ -162,20 +217,30 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         genos=lapply(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)], function(y){sim_genos(y, perpop)})
         sgenos=setDT(unlist(lapply(genos, `[[`, 2), recursive = FALSE))
         g=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix[,i])}))
+        g.ln=as.numeric(lapply(sgenos, function(x){sum(x*beta.matrix.ln[,i])}))
+
         out=c(out, genos)
         gi=c(gi,g)
+        gi.ln=c(gi.ln,g.ln)
+        
         inform("variance in the genetic component of the phenotype for ancestry group",i,"is", var(g), ", should be equal to heritability.")
+        inform("variance in the genetic component of the phenotype for ancestry group",i,"(lognormal) is", var(g.ln), ", should be equal to heritability.")
+
         phi=g+rnorm(length(g), mean=0, sd=sqrt(1-(var(g))))
-        inform("Variance of the simulated phenotype for ancestry group",i,"is", var(phi), "which should be close to 1.")
+        phi.ln=g.ln+rnorm(length(g.ln), mean=0, sd=sqrt(1-(var(g.ln))))
+
+        inform("Variance of the simulated phenotype for ancestry group",i,"(pointnormal) is", var(phi), "which should be close to 1.")
+        inform("Variance of the simulated phenotype for ancestry group",i,"(lognormal) is", var(phi.ln), "which should be close to 1.")
+
         ph=c(ph,phi)
+        ph.ln=c(ph.ln, phi.ln)
 
     }
     fwrite(setDT(as.list(pp.towrite))[], "popsamples.txt", quote=F)
-
+    gc()
     sampperpop=as.numeric(lapply(out, function(x){ncol(x[[1]])}))
     sgenos=setDT(unlist(lapply(out, `[[`, 2), recursive = FALSE))
     genos=setDT(unlist(lapply(out, `[[`, 1), recursive = FALSE))
-    snpnames=paste0("rs", 1:nrow(genos))
     snames=paste("SAMPLE", unlist(lapply(sampperpop, function(x){1:x})), rep(colnames(kgfreq), sampperpop), sep=".")
     setnames(genos, snames)
     genotype.table=c("A\tA", "A\tG", "G\tG")
@@ -191,10 +256,18 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
                    rep(0, length(snames)),
                    sample(1:2, length(snames), replace=T),
                    ph), paste0(outfn, ".target.tfam"), sep="\t", col.names=F, quote=F)
+                   inform("Writing tfam (lognormal)...")
+   fwrite(
+       data.table(FID=snames,
+                  IID=snames,
+                  rep(0, length(snames)),
+                  rep(0, length(snames)),
+                  sample(1:2, length(snames), replace=T),
+                  ph.ln), paste0(outfn, ".target.ln.tfam"), sep="\t", col.names=F, quote=F)
+
     inform("Done.")
 
 }
-
 option_list = list(
   make_option(c("-n", "--num-variants"), type="integer", default=NULL,
               help="Number of causal variants to simulate per cohort. The total number of variants simulated will be higher.", metavar="integer"),
