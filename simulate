@@ -90,9 +90,10 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     all.snp.beta=betas.homogenous.norm
     beta.ln.hom=beta.ln
     all.snp.beta.ln=beta.ln
-    
+
     POPPERSUP=ncol(kgfreq)/TOTNUMPOP
     beta.matrix=NULL
+    beta.matrix.ln=NULL
     for(i in 0:(TOTNUMPOP-1)){
     snp.het=numeric(0)
     if(M.snp.het>0){
@@ -105,18 +106,18 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     sum.beta2=sum(betas.het.norm*betas.het.norm)
     coef=sqrt(prop.heter*her/sum.beta2)
     betas.het.norm=coef*betas.het.norm
-    
+
     ## lognormal model
     ln.mu=-log10(M.snp.het)
     ln.beta2=10^(rnorm(M.snp.het, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
     ln.beta2=ln.beta2*prop.heter*her/sum(beta2)
     beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.het,replace=T)
     beta.ln.het=beta.ln
-    
+
     all.snp.maf=c(all.snp.maf, snp.het.maf)
     all.snp.beta=c(all.snp.beta, betas.het.norm)
     all.snp.beta.ln=c(all.snp.beta.ln, beta.ln)
-    
+
     inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
            mean(c(betas.homogenous.norm, betas.het.norm)), "\ttotal heritability explained (pointnormal):", var(c(betas.homogenous.norm, betas.het.norm))*n.variants)
     inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
@@ -222,7 +223,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
         out=c(out, genos)
         gi=c(gi,g)
         gi.ln=c(gi.ln,g.ln)
-        
+
         inform("variance in the genetic component of the phenotype for ancestry group",i,"is", var(g), ", should be equal to heritability.")
         inform("variance in the genetic component of the phenotype for ancestry group",i,"(lognormal) is", var(g.ln), ", should be equal to heritability.")
 
