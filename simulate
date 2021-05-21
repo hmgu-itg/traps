@@ -255,7 +255,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
                    rep(0, length(snames)),
                    rep(0, length(snames)),
                    sample(1:2, length(snames), replace=T),
-                   ph), paste0(outfn, ".target.tfam"), sep="\t", col.names=F, quote=F)
+                   ph), paste0(outfn, ".target.pn.tfam"), sep="\t", col.names=F, quote=F)
                    inform("Writing tfam (lognormal)...")
    fwrite(
        data.table(FID=snames,
