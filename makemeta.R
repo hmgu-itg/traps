@@ -4,7 +4,7 @@ args=commandArgs(T)
 
 midfix=args[2]
 dir=args[1]
-for(suffix in c("pn", "ln"){
+for(suffix in c("pn", "ln")){
     ftoread=list.files(dir, paste0(midfix, ".", suffix,".qassoc$"))
     pops=sub(paste0(midfix, ".", suffix, ".qassoc"), "", ftoread, fixed=T)
 
@@ -51,6 +51,7 @@ for(suffix in c("pn", "ln"){
                 group.mtx=merge(group.mtx, pdat, by="SNP")
             }
         }
+        print(head(group.mtx))
         fwrite(group.mtx,
                paste0(dir,"/metasoft.", angroup, ".", suffix,".txt")
               ,sep="\t",

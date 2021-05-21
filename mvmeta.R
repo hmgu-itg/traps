@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 library(data.table)
 indir="."
-for(suffix in c("pn", "ln"){
+for(suffix in c("pn", "ln")){
     mvbeta=fread(paste0(indir, "/mvmeta.",suffix,".beta"))
     mvse=fread(paste0(indir, "/mvmeta.",suffix,".se"))
     pca= fread('pca.txt',header=F)
