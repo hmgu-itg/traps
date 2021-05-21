@@ -208,6 +208,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     gi=NULL
     gi.ln=NULL
     ph=NULL
+    ph.ln=NULL
     pp.towrite=NULL
     popdict=c("AFR", "AMR", "EAS", "EUR", "SAS")
     for(i in 1:ncol(beta.matrix)){
