@@ -82,7 +82,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     ln.sigma=0.8
     ln.mu=-log10(M.snp.hom)
     ln.beta2=10^(rnorm(M.snp.hom, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
-    ln.beta2=ln.beta2*(1-prop.heter)*her/sum(beta2)
+    ln.beta2=ln.beta2*(1-prop.heter)*her/sum(ln.beta2)
     beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.hom,replace=T)
     #inform(var(betas.homogenous.norm)*M.snp.hom)
     #inform(mean(betas.homogenous.norm))
@@ -110,7 +110,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     ## lognormal model
     ln.mu=-log10(M.snp.het)
     ln.beta2=10^(rnorm(M.snp.het, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
-    ln.beta2=ln.beta2*prop.heter*her/sum(beta2)
+    ln.beta2=ln.beta2*prop.heter*her/sum(ln.beta2)
     beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.het,replace=T)
     beta.ln.het=beta.ln
 
@@ -124,21 +124,22 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
                   mean(all.snp.beta.ln), "\ttotal heritability explained (lognormal):", var(all.snp.beta.ln)*n.variants)
 
     betavec=c(betas.homogenous.norm, rep(0, M.snp.het*i), betas.het.norm, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
-    betavec.ln=c(beta.ln.hom, rep(0, M.snp.het*i), betas.ln.het, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
+    betavec.ln=c(beta.ln.hom, rep(0, M.snp.het*i), beta.ln.het, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
     if(is.null(beta.matrix)){beta.matrix=data.table(betavec)}else{
         beta.matrix=cbind(beta.matrix, betavec)
         }
-    }
+    
     beta.allelic=setDT(lapply(beta.matrix, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
     beta.matrix=as.matrix(beta.matrix)
 
     if(is.null(beta.matrix.ln)){beta.matrix.ln=data.table(betavec.ln)}else{
         beta.matrix.ln=cbind(beta.matrix.ln, betavec.ln)
         }
-    }
+    
+    
     beta.allelic.ln=setDT(lapply(beta.matrix.ln, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
     beta.matrix.ln=as.matrix(beta.matrix.ln)
-
+    }
 
     out=NULL
     gi=NULL
@@ -199,7 +200,9 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
                     ph.ln), paste0(outfn, ".ln.tfam"), sep="\t", col.names=F, quote=F)
     inform("Done.")
     inform("Writing betas...")
-    save(snpnames, beta.matrix, beta.matrix.ln, beta.allelic, beta.allelic.ln, kgfreq[toselect,], paste0(outfn, ".beta.rdata"))
+    print(head(toselect))
+    print(head(kgfreq))
+    save(snpnames, beta.matrix, beta.matrix.ln, beta.allelic, beta.allelic.ln, kgfreq, toselect, M.snp.hom, M.snp.het, file = paste0(outfn, ".beta.rdata"))
     gc()
     inform ("Repeating for an equal number of test samples...")
     out=NULL
