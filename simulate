@@ -200,8 +200,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
                     ph.ln), paste0(outfn, ".ln.tfam"), sep="\t", col.names=F, quote=F)
     inform("Done.")
     inform("Writing betas...")
-    print(head(toselect))
-    print(head(kgfreq))
+
     save(snpnames, beta.matrix, beta.matrix.ln, beta.allelic, beta.allelic.ln, kgfreq, toselect, M.snp.hom, M.snp.het, file = paste0(outfn, ".beta.rdata"))
     gc()
     inform ("Repeating for an equal number of test samples...")
