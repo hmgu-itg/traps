@@ -128,15 +128,15 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     if(is.null(beta.matrix)){beta.matrix=data.table(betavec)}else{
         beta.matrix=cbind(beta.matrix, betavec)
         }
-    
+
     beta.allelic=setDT(lapply(beta.matrix, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
     beta.matrix=as.matrix(beta.matrix)
 
     if(is.null(beta.matrix.ln)){beta.matrix.ln=data.table(betavec.ln)}else{
         beta.matrix.ln=cbind(beta.matrix.ln, betavec.ln)
         }
-    
-    
+
+
     beta.allelic.ln=setDT(lapply(beta.matrix.ln, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
     beta.matrix.ln=as.matrix(beta.matrix.ln)
     }
@@ -207,6 +207,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     inform ("Repeating for an equal number of test samples...")
     out=NULL
     gi=NULL
+    gi.ln=NULL
     ph=NULL
     pp.towrite=NULL
     popdict=c("AFR", "AMR", "EAS", "EUR", "SAS")
