@@ -100,6 +100,7 @@ names(anc.distr)=c("AFR", "AMR", "EAS", "EUR", "SAS")
 print(anc.distr)
 
 ### MAIN
+resul=NULL
 for(suffix in c("pn", "ln")){
   if(suffix=="pn"){cat(paste("Pointnormal model\n"))}else{cat(paste("Lognormal model\n"))}
   cat(paste("Reading target additive dataset\n"))
@@ -139,7 +140,6 @@ for(suffix in c("pn", "ln")){
       }
   }
 
-  resul=NULL
 
   ## Ancestry specific stuff first
 

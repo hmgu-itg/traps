@@ -8,7 +8,7 @@ for(suffix in c("pn", "ln")){
     ftoread=list.files(dir, paste0(midfix, ".", suffix,".qassoc$"))
     pops=sub(paste0(midfix, ".", suffix, ".qassoc"), "", ftoread, fixed=T)
 
-    nmtbl=read.table(text="CHB	EAS
+    nmtbl=fread(text="CHB	EAS
     JPT	EAS
     CHS	EAS
     CDX	EAS
@@ -41,7 +41,7 @@ for(suffix in c("pn", "ln")){
         group.mtx=NULL
         for(p in pops){
             fn=paste0(dir,"/", p,".", suffix, ".qassoc")
-            if(!file.exists(fn)){next}
+            if(!file.exists(fn)){print("did not find file");print(fn);next}
             pdat=fread(fn,
                        select = c("SNP", "BETA", "SE"))
             setnames(pdat, c("SNP", paste(c("BETA", "SE"), p, sep=".")))

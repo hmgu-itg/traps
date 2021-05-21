@@ -48,8 +48,8 @@ for p in AFR AMR EAS EUR SAS TE; do java -jar /Metasoft.jar -input metasoft.$p.l
 
 ./mvmeta.R
 
-plink --tfile $baseout.target.pn --recode A-transpose --out $baseout.target.add.pn
-plink --tfile $baseout.target.ln --recode A-transpose --out $baseout.target.add.ln
+plink --tfam $baseout.target.pn.tfam --tped $baseout.target.tped --recode A-transpose --out $baseout.target.add.pn
+plink --tfam $baseout.target.ln.tfam --tped $baseout.target.tped --recode A-transpose --out $baseout.target.add.ln
 
 #sadness, the metasoft.out files have garbage columns at the end (and spelling mistakes in col names :((( )
 for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
