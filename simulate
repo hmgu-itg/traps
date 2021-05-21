@@ -95,50 +95,57 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     beta.matrix=NULL
     beta.matrix.ln=NULL
     for(i in 0:(TOTNUMPOP-1)){
-    snp.het=numeric(0)
-    if(M.snp.het>0){
-      snp.het=toselect[M.snp.hom+(1:M.snp.het)]
+      snp.het=numeric(0)
+      if(M.snp.het>0){
+        snp.het=toselect[M.snp.hom+((i*M.snp.het+1):((i+1)*M.snp.het))]
+      }
+      all.snp.maf=c(all.snp.maf, apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean))
     }
-    snp.het.maf=apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean)
+    for(i in 0:(TOTNUMPOP-1)){
+      #snp.het=numeric(0)
+      #if(M.snp.het>0){
+      #  snp.het=toselect[M.snp.hom+((i*M.snp.het+1):((i+1)*M.snp.het))]
+      #}
+      #snp.het.maf=apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean)
 
-    #pointnormal model
-    betas.het.norm=rnorm(M.snp.het)
-    sum.beta2=sum(betas.het.norm*betas.het.norm)
-    coef=sqrt(prop.heter*her/sum.beta2)
-    betas.het.norm=coef*betas.het.norm
+      #pointnormal model
+      betas.het.norm=rnorm(M.snp.het)
+      sum.beta2=sum(betas.het.norm*betas.het.norm)
+      coef=sqrt(prop.heter*her/sum.beta2)
+      betas.het.norm=coef*betas.het.norm
 
-    ## lognormal model
-    ln.mu=-log10(M.snp.het)
-    ln.beta2=10^(rnorm(M.snp.het, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
-    ln.beta2=ln.beta2*prop.heter*her/sum(ln.beta2)
-    beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.het,replace=T)
-    beta.ln.het=beta.ln
+      ## lognormal model
+      ln.mu=-log10(M.snp.het)
+      ln.beta2=10^(rnorm(M.snp.het, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
+      ln.beta2=ln.beta2*prop.heter*her/sum(ln.beta2)
+      beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.het,replace=T)
+      beta.ln.het=beta.ln
 
-    all.snp.maf=c(all.snp.maf, snp.het.maf)
-    all.snp.beta=c(all.snp.beta, betas.het.norm)
-    all.snp.beta.ln=c(all.snp.beta.ln, beta.ln)
+      #all.snp.maf=c(all.snp.maf, snp.het.maf)
+      all.snp.beta=c(all.snp.beta, betas.het.norm)
+      all.snp.beta.ln=c(all.snp.beta.ln, beta.ln)
 
-    inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
-           mean(c(betas.homogenous.norm, betas.het.norm)), "\ttotal heritability explained (pointnormal):", var(c(betas.homogenous.norm, betas.het.norm))*n.variants)
-    inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
-                  mean(all.snp.beta.ln), "\ttotal heritability explained (lognormal):", var(all.snp.beta.ln)*n.variants)
+      inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
+             mean(c(betas.homogenous.norm, betas.het.norm)), "\ttotal heritability explained (pointnormal):", var(c(betas.homogenous.norm, betas.het.norm))*n.variants)
+      inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
+                    mean(all.snp.beta.ln), "\ttotal heritability explained (lognormal):", var(all.snp.beta.ln)*n.variants)
 
-    betavec=c(betas.homogenous.norm, rep(0, M.snp.het*i), betas.het.norm, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
-    betavec.ln=c(beta.ln.hom, rep(0, M.snp.het*i), beta.ln.het, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
-    if(is.null(beta.matrix)){beta.matrix=data.table(betavec)}else{
-        beta.matrix=cbind(beta.matrix, betavec)
-        }
+      betavec=c(betas.homogenous.norm, rep(0, M.snp.het*i), betas.het.norm, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
+      betavec.ln=c(beta.ln.hom, rep(0, M.snp.het*i), beta.ln.het, rep(0,M.snp.het*(TOTNUMPOP-1-i)))
+      if(is.null(beta.matrix)){beta.matrix=data.table(betavec)}else{
+          beta.matrix=cbind(beta.matrix, betavec)
+          }
+      beta.allelic=setDT(lapply(beta.matrix, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
+      beta.matrix=as.matrix(beta.matrix)
 
-    beta.allelic=setDT(lapply(beta.matrix, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
-    beta.matrix=as.matrix(beta.matrix)
+      if(is.null(beta.matrix.ln)){beta.matrix.ln=data.table(betavec.ln)}else{
+          beta.matrix.ln=cbind(beta.matrix.ln, betavec.ln)
+          }
 
-    if(is.null(beta.matrix.ln)){beta.matrix.ln=data.table(betavec.ln)}else{
-        beta.matrix.ln=cbind(beta.matrix.ln, betavec.ln)
-        }
+          print(dim(beta.matrix.ln))
 
-
-    beta.allelic.ln=setDT(lapply(beta.matrix.ln, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
-    beta.matrix.ln=as.matrix(beta.matrix.ln)
+      beta.allelic.ln=setDT(lapply(beta.matrix.ln, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
+      beta.matrix.ln=as.matrix(beta.matrix.ln)
     }
 
     out=NULL
@@ -273,6 +280,7 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     inform("Done.")
 
 }
+
 option_list = list(
   make_option(c("-n", "--num-variants"), type="integer", default=NULL,
               help="Number of causal variants to simulate per cohort. The total number of variants simulated will be higher.", metavar="integer"),
