@@ -159,9 +159,15 @@ for(suffix in c("pn", "ln")){
       toconvert=c("mvbeta", "beta", "se","P")
       totest[, (toconvert) := lapply(.SD, as.numeric), .SDcols = toconvert]
       totest=totest[P<P_THRESHOLD,]
-      gtxs=grs.summary(totest$mvbeta, totest$beta, totest$se, perpop)
-      add=data.table(model=suffix, PRS=p, target=p, nsnp=nrow(totest), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+      add=NULL
+      if(nrow(totest)>0){
+        gtxs=grs.summary(totest$mvbeta, totest$beta, totest$se, perpop)
+        add=data.table(model=suffix, PRS=p, target=p, nsnp=nrow(totest), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+      }else{
+        add=data.table(model=suffix, PRS=p, target=p, nsnp=0, method="indirect", cor=NA, Standard.Error=NA, P=NA, varex=NA)
+      }
       resul=rbindlist(list(resul, add), use.names=T)
+
       ## direct
       cat(paste("\t\t Ancestry-specific, direct method", p,"\n"))
       flush.console()
@@ -169,18 +175,23 @@ for(suffix in c("pn", "ln")){
       m=merge(m, mvmeta[,c("SNP", "V2"), with=F],by="SNP")
       setnames(m, "V2", "P")
       m=m[P<P_THRESHOLD,]
-      toconvert=p
-      m[, (toconvert) := lapply(.SD, as.numeric), .SDcols = toconvert]
-      prs=t(t(lapply(m[,..popcol], function(x){sum(m[[p]]*x)})))
-      prs=data.table(id=rownames(prs), prs=unlist(prs))
-      prs=merge(prs, ttfam, by.x="id", by.y="V1")
-      add=cor.test.plus(prs$prs, prs$V6)
-      add$model=suffix
-      add$PRS=p
-      add$target=p
-      add$nsnp=nrow(m)
-      add$varex=add$cor*add$cor
-      add$method="direct"
+      add=NULL
+      if(nrow(m)>0){
+        toconvert=p
+        m[, (toconvert) := lapply(.SD, as.numeric), .SDcols = toconvert]
+        prs=t(t(lapply(m[,..popcol], function(x){sum(m[[p]]*x)})))
+        prs=data.table(id=rownames(prs), prs=unlist(prs))
+        prs=merge(prs, ttfam, by.x="id", by.y="V1")
+        add=cor.test.plus(prs$prs, prs$V6)
+        add$model=suffix
+        add$PRS=p
+        add$target=p
+        add$nsnp=nrow(m)
+        add$varex=add$cor*add$cor
+        add$method="direct"
+      }else{
+        add=data.table(model=suffix, PRS=p, target=p, nsnp=0, method="direct", cor=NA, Standard.Error=NA, P=NA, varex=NA)
+      }
       resul=rbindlist(list(resul, add), use.names=T)
   }
 
