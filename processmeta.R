@@ -254,4 +254,4 @@ for(suffix in c("pn", "ln")){
     }
   }
 }
-fwrite(resul, paste(opt[["out"]], "prs.fit.txt", sep="."), sep="\t", quote=F)
+fwrite(resul, paste(opt[["out"]], "prs.fit.txt", sep="."), sep="\t", quote=F, na="NA")
