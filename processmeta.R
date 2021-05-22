@@ -191,41 +191,56 @@ for(suffix in c("pn", "ln")){
       select=c("RSID","PVALUE_FE" ,"BETA_FE"))
       ancmeta=ancmeta[PVALUE_FE<P_THRESHOLD,c("RSID", "BETA_FE")]
       cat(paste("Number of SNPs in PRS:",nrow(ancmeta), "\n"))
-      for(p in unique(nmtbl$V1)){
-          ### Exact method corr with phenotype
-          cat(paste("\t Using target population", p,"\n"))
-          cat(paste("\t\t Direct method", p,"\n"))
-          flush.console()
-          m=merge(ancmeta, target, by.x="RSID", by.y="rs")
-          popcol=colnames(target)[grep(p, colnames(target))]
-          if(!length(popcol)){next}
-          prs=t(m[,lapply(.SD, function(x){sum(BETA_FE*x)}), .SDcols=popcol])
-          prs=data.table(id=rownames(prs), prs=prs)
-          prs=merge(prs, ttfam, by.x="id", by.y="V1")
-          add=cor.test.plus(prs$prs.V1, prs$V6)
-          add$model=suffix
-          add$PRS=angroup
-          add$target=p
-          add$nsnp=nrow(ancmeta)
-          add$method="direct"
-          add$varex=add$cor*add$cor
-          if(is.null(resul)){resul=add}else{resul=rbindlist(list(resul,add), use.names=T)}
+      if(nrow(ancmeta)==0){
+        add=data.table(target=unique(nmtbl$V1))
+        add[,PRS:=angroup]
+        add[,model:=suffix]
+        add[,nsnp:=0]
+        add=rbind(add,add)
+        add[,method:=rep(c("indirect", "direct"), each=nrow(add)/2)]
+        add[,cor:=NA]
+        add[,Standard.Error:=NA]
+        add[,P:=NA]
+        add[,varex:=NA]
+        resul=rbindlist(list(resul, add), use.names=T)
+      }
+      else{
+        for(p in unique(nmtbl$V1)){
+            ### Exact method corr with phenotype
+            cat(paste("\t Using target population", p,"\n"))
+            cat(paste("\t\t Direct method", p,"\n"))
+            flush.console()
+            m=merge(ancmeta, target, by.x="RSID", by.y="rs")
+            popcol=colnames(target)[grep(p, colnames(target))]
+            if(!length(popcol)){next}
+            prs=t(m[,lapply(.SD, function(x){sum(BETA_FE*x)}), .SDcols=popcol])
+            prs=data.table(id=rownames(prs), prs=prs)
+            prs=merge(prs, ttfam, by.x="id", by.y="V1")
+            add=cor.test.plus(prs$prs.V1, prs$V6)
+            add$model=suffix
+            add$PRS=angroup
+            add$target=p
+            add$nsnp=nrow(ancmeta)
+            add$method="direct"
+            add$varex=add$cor*add$cor
+            if(is.null(resul)){resul=add}else{resul=rbindlist(list(resul,add), use.names=T)}
 
-          ## approx method
-          cat(paste("\t\t Indirect method", p,"\n"))
-          flush.console()
-          if(angroup=="TE"){perpop=n.samples}else{
-            tosimulate=anc.distr[angroup]*n.samples
-            POPPERSUP=4
-            perpop=tosimulate/POPPERSUP
-          }
+            ## approx method
+            cat(paste("\t\t Indirect method", p,"\n"))
+            flush.console()
+            if(angroup=="TE"){perpop=n.samples}else{
+              tosimulate=anc.distr[angroup]*n.samples
+              POPPERSUP=4
+              perpop=tosimulate/POPPERSUP
+            }
 
-          ancmeta.pop=merge(ancmeta, popdat[[p]], all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
-          gtxs=grs.summary(ancmeta.pop$BETA_FE, ancmeta.pop$BETA, ancmeta.pop$SE, perpop)
-          add=data.table(model=suffix, PRS=angroup, target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
-          resul=rbindlist(list(resul, add), use.names=T)
+            ancmeta.pop=merge(ancmeta, popdat[[p]], all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
+            gtxs=grs.summary(ancmeta.pop$BETA_FE, ancmeta.pop$BETA, ancmeta.pop$SE, perpop)
+            add=data.table(model=suffix, PRS=angroup, target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+            resul=rbindlist(list(resul, add), use.names=T)
 
       }
+    }
   }
 }
 fwrite(resul, paste(opt[["out"]], "prs.fit.txt", sep="."), sep="\t", quote=F)
