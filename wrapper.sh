@@ -9,6 +9,13 @@ propheter=$4
 anc=$5
 baseout=$6
 pthr=$7
+
+if [[ -z "$8" ]]; then
+  SAVEFILE="yes"
+else
+  SAVEFILE=$8
+fi
+
 echo parameters $nsnp $her $n $propheter $anc $baseout $pthr
 
 if [[ -s "/transfer/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out.prs.fit.txt" ]]; then
@@ -23,8 +30,11 @@ else
  mkdir -p $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd $SCRATCH/ge64cig2/TransAncPRS/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 fi
 
-./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout
-
+if [[ "$SAVEFILE" == "yes" ]]; then
+ ./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout
+else
+  ./simulate -n $nsnp -r $her -s $n -p $propheter -a $anc -o $baseout -x
+fi
 
 for pop in GWD LWK MSL YRI CLM MXL PEL PUR CDX CHB JPT KHV FIN GBR IBS TSI BEB GIH PJL STU; do
   awk '{if(!($1~/'$pop'/)){$NF=-9}}1' 'OFS=\t' $baseout.pn.tfam > $pop.pn.tfam;
@@ -55,8 +65,13 @@ plink --tfam $baseout.target.ln.tfam --tped $baseout.target.tped --recode A-tran
 for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
 ./processmeta.R -p $pthr -a $anc -s $n -i $baseout -o snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out
 
+if [[ "$SAVEFILE" == "yes" ]]; then
 tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
-cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.*txt snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2 /transfer
+cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.rundata.tar.bz2 /transfer
+fi
+
+gzip snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.*txt
+cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.*txt.gz /transfer
 
 if [ -z "$SCRATCH" ]; then
  cd ../..

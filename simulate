@@ -34,7 +34,7 @@ inform=function(...){
     flush.console()
 }
 
-simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr, outfn){
+simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr, outfn, nodump){
     TOTNUMPOP=5
     anc.distr=check_anc_distr(anc.distr)
     if(her>1 | her <= 0){stop(paste("Heritability (", her, ") is out of bounds."))}
@@ -208,7 +208,8 @@ simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, anc.distr,
     inform("Done.")
     inform("Writing betas...")
 
-    save(snpnames, beta.matrix, beta.matrix.ln, beta.allelic, beta.allelic.ln, kgfreq, toselect, M.snp.hom, M.snp.het, file = paste0(outfn, ".beta.rdata"))
+
+    if(!nodump){save(snpnames, beta.matrix, beta.matrix.ln, beta.allelic, beta.allelic.ln, kgfreq, toselect, M.snp.hom, M.snp.het, file = paste0(outfn, ".beta.rdata"))}
     gc()
     inform ("Repeating for an equal number of test samples...")
     out=NULL
@@ -292,8 +293,10 @@ option_list = list(
               help="Proportion of sites with heterogeneous effects. 1 - this proportion of variants will have the same effect across all populations.", metavar="numeric"),
   make_option(c("-a", "--anc-af-distr"), type="character", default=NULL,
               help="Comma-separated list of proportions to simulate from each ancestry group. Should be a vector of 5 probabilities and sum to 1. Alternatively, if this is only 1 probability, it is assumed to mean the proportion of EUR.", metavar="character"),
-    make_option(c("-o", "--out"), type="character",
-              help="output file prefix.", metavar="character")
+  make_option(c("-o", "--out"), type="character",
+              help="output file prefix.", metavar="character"),
+  make_option(c("-x", "--nodump"), action="store_true", default=FALSE, dest="nodump", help="Don't dump key variables to disk. They will otherwise be saved in a .rdata file.")
+
 );
 
 opt_parser = OptionParser(option_list=option_list);
@@ -311,4 +314,4 @@ if (is.null(opt[["num-variants"]]) |
 
 ancdist=as.numeric(strsplit(opt[["anc-af-distr"]], ",", fixed=T)[[1]])
 
-simulate_pointnormal(opt[["num-variants"]], opt[["heritability"]], opt[["num-samples"]], opt[["prop-heter"]], ancdist, opt[["out"]])
+simulate_pointnormal(opt[["num-variants"]], opt[["heritability"]], opt[["num-samples"]], opt[["prop-heter"]], ancdist, opt[["out"]], opt[["nodump"]])
