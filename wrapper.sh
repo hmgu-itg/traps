@@ -24,6 +24,7 @@ if [[ -s "/transfer/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out
 fi
 
 if [ -z "$SCRATCH" ]; then
+echo Current directory $(pwd), set SCRATCH env var to change.
 mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout && cp -r /treps/* .
 
 else
