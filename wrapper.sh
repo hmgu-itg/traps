@@ -62,7 +62,7 @@ for p in AFR AMR EAS EUR SAS TE; do java -jar /Metasoft.jar -input metasoft.$p.l
 plink --tfam $baseout.target.pn.tfam --tped $baseout.target.tped --recode A-transpose --out $baseout.target.add.pn
 plink --tfam $baseout.target.ln.tfam --tped $baseout.target.tped --recode A-transpose --out $baseout.target.add.ln
 
-#sadness, the metasoft.out files have garbage columns at the end (and spelling mistakes in col names :((( )
+#the metasoft.out files have garbage columns at the end (and spelling mistakes in col names)
 for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
 ./processmeta.R -p $pthr -a $anc -s $n -i $baseout -o snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.$baseout.out
 
