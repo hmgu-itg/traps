@@ -155,7 +155,7 @@ for(suffix in c("pn", "ln", "Wu")){
       add=NULL
       if(nrow(totest)>0){
         gtxs=grs.summary(totest$mvbeta, totest$beta, totest$se, perpop)
-        add=data.table(model=suffix, PRS=p, target=p, nsnp=nrow(totest), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+        add=data.table(model=suffix, PRS=p, target=p, nsnp=nrow(totest), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2rs[1])
       }else{
         add=data.table(model=suffix, PRS=p, target=p, nsnp=0, method="indirect", cor=NA, Standard.Error=NA, P=NA, varex=NA)
       }
@@ -252,7 +252,7 @@ for(suffix in c("pn", "ln", "Wu")){
 
             ancmeta.pop=merge(ancmeta, popdat, all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
             gtxs=grs.summary(ancmeta.pop$BETA_FE, ancmeta.pop$BETA, ancmeta.pop$SE, perpop)
-            add=data.table(model=suffix, PRS=angroup, target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+            add=data.table(model=suffix, PRS=angroup, target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2rs[1])
             resul=rbindlist(list(resul, add), use.names=T)
 
       }
