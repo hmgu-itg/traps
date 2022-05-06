@@ -1,0 +1,55 @@
+FROM ubuntu:20.04
+ARG GIT_ACCESS_TOKEN
+
+## Setting Locale
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt-get clean && apt-get update && apt-get install -y locales gnupg software-properties-common libssl-dev libxml2-dev libcurl4-openssl-dev unixodbc-dev wget git
+RUN locale-gen
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+RUN dpkg-reconfigure --frontend=noninteractive locales
+RUN update-locale LANG=en_US.UTF-8
+
+## R
+RUN gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
+RUN gpg -a --export E298A3A825C0D65DFD57CBB651716619E084DAB9 | apt-key add -
+RUN add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
+RUN apt-get update
+RUN apt-get install -y r-base r-base-core
+RUN Rscript -e "install.packages(c('data.table', 'devtools'))"
+RUN Rscript -e "install.packages('sparklyr');devtools::install_github('tobyjohnson/gtx')"
+RUN Rscript -e "install.packages(c('optparse', 'this.path'))"
+RUN Rscript -e "install.packages(c('RcppArmadillo', 'gaston', 'Ravages'))"
+RUN Rscript -e "install.packages('gaston.utils', repos = NULL, dependencies = TRUE)"
+
+##Plink
+WORKDIR /
+RUN wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20201019.zip && unzip plink_linux_x86_64_20201019.zip && rm LICENSE toy.* prettify && mv plink /usr/bin && rm -f plink_linux_x86_64_20201019.zip
+
+RUN apt install -y default-jre
+
+## METASOFT
+## Of course this antiquated software has a completely unreliable server, the below is 2.0.1
+WORKDIR /
+#RUN wget http://genetics.cs.ucla.edu/meta/repository/2.0.1/Metasoft.zip
+RUN wget -O Metasoft.zip https://hmgubox2.helmholtz-muenchen.de/index.php/s/24iZqWpeLRzZH2e/download
+RUN unzip Metasoft.zip
+
+## GIT
+RUN apt install -y nano
+ARG CACHEBUST=9
+
+ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
+#RUN git config --global hub.protocol https
+#RUN git config --global url."https://${GIT_ACCESS_TOKEN}@github.com".insteadOf "ssh://git@github.com"
+RUN git clone https://agilly:${GIT_ACCESS_TOKEN}@github.com/hmgu-itg/treps
+WORKDIR /treps
+RUN wget -O 1kg.tar.gz https://hmgubox2.helmholtz-muenchen.de/index.php/s/YnGW48YJwoJyHYc/download
+RUN tar -xvzf 1kg.tar.gz
+RUN chown root:root 1000GP_Phase3_freq.txt
+RUN chmod a+r 1000GP_Phase3_freq.txt
+RUN apt install -y moreutils time
+RUN mkdir /transfer
+RUN mkdir -p /gpfs/scratch/pn29li/ge64cig2/ge64cig2
+

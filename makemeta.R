@@ -4,7 +4,7 @@ args=commandArgs(T)
 
 midfix=args[2]
 dir=args[1]
-for(suffix in c("pn", "ln")){
+for(suffix in c("pn", "ln", "Wu")){
     ftoread=list.files(dir, paste0(midfix, ".", suffix,".qassoc$"))
     pops=sub(paste0(midfix, ".", suffix, ".qassoc"), "", ftoread, fixed=T)
 

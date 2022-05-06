@@ -2,6 +2,7 @@
 suppressPackageStartupMessages(library("optparse"))
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(gtx))
+suppressPackageStartupMessages(library(gaston))
 options(warn=1)
 
 TOTNUMPOP=5
@@ -16,7 +17,7 @@ option_list = list(
   make_option(c("-p", "--p-thresh"), type="numeric", default=NULL,
               help="P-value threshold at which to select SNPs for inclusion in the PRS.", metavar="numeric"),
   make_option(c("-i", "--infile"), type="character", default=NULL,
-              help="Base file input, .target.add.traw and .target.tfam expected.", metavar="character"),
+              help="Base file input, .target.add.traw and .target.fam expected.", metavar="character"),
     make_option(c("-o", "--out"), type="character",
               help="output file prefix.", metavar="character")
 );
@@ -101,25 +102,19 @@ print(anc.distr)
 
 ### MAIN
 resul=NULL
-for(suffix in c("pn", "ln")){
-  if(suffix=="pn"){cat(paste("Pointnormal model\n"))}else{cat(paste("Lognormal model\n"))}
+for(suffix in c("pn", "ln", "Wu")){
+  if(suffix=="pn"){cat(paste("Pointnormal model\n"))}
+  if(suffix=="ln"){cat(paste("Lognormal model\n"))}
+  if(suffix=="Wu"){cat(paste("Frequency-dependent model\n"))}
   cat(paste("Reading target additive dataset\n"))
   flush.console()
-  target=fread(paste0(indir, "/",infile,".target.add.",suffix,".traw"))
-  ttfam=fread(paste0(indir, "/",infile,".target.",suffix,".tfam"))
-
-  toselect=c(2,7:ncol(target))
-  target=target[,..toselect]
-  setnames(target, "SNP", "rs")
-  setnames(target, colnames(target), sub("_.*", "", colnames(target)))
-
-
-  cat(paste("Reading ancestry-specific results\n"))
-  flush.console()
+  target.bm=read.bed.matrix(paste0(indir, "/", infile, ".target"))
+  ttfam=fread(paste0(indir, "/",infile,".target.",suffix,".fam"))
+  #tmp.names <- strsplit(sub(target.bm@ped$id, pattern="\\.V", replacement = "\\."), split = "\\.")
+  #target.bm@ped$id <- paste0("SAMPLE.", unlist(lapply(tmp.names, function(z) paste0(z[2], ".", z[1]))))
+  
   mvmeta=fread(paste0(indir,"/mvmeta.",suffix,".out"))
   pca=fread(paste0(indir,"/pca.txt"))
-
-
 
   cat(paste("Building ancestry-specific scores\n"))
   flush.console()
@@ -133,36 +128,34 @@ for(suffix in c("pn", "ln")){
 
   cat(paste("Reading target association sumstats\n"))
   flush.console()
-  popdat=list()
-  for(p in unique(nmtbl$V1)){
-      if(file.exists(paste0(indir,"/",p,".target.",suffix,".qassoc"))){
-              popdat[[p]]=fread(paste0(indir,"/",p,".target.",suffix,".qassoc"),select=c("SNP","BETA" ,"SE"))
-      }
-  }
 
 
   ## Ancestry specific stuff first
-
   for(p in unique(nmtbl$V1)){
+      if(file.exists(paste0(indir,"/",p,".target.",suffix,".qassoc"))){
+              popdat=fread(paste0(indir,"/",p,".target.",suffix,".qassoc"),select=c("SNP","BETA" ,"SE"))
+      }
+ 
       ### indirect
       angroup=nmtbl$V2[nmtbl$V1==p]
       tosimulate=anc.distr[angroup]*n.samples
       POPPERSUP=4
+      popcol=ttfam$V1[grep(p, ttfam$V1)]
       perpop=tosimulate/POPPERSUP
-      popcol=colnames(target)[grep(p, colnames(target))]
       if(!length(popcol)){next}
       cat(paste("\t\t Ancestry-specific, indirect method", p,"\n"))
       flush.console()
-      totest=merge(tst[,c("SNP", p),with=F], popdat[[p]], by="SNP")
+      totest=merge(tst[,c("SNP", p),with=F], popdat, by="SNP")
       totest=merge(totest, mvmeta[,c("SNP", "V2"), with=F])
       setnames(totest, c("SNP", p, "BETA", "SE", "V2"), c("SNP","mvbeta", "beta", "se","P"))
       toconvert=c("mvbeta", "beta", "se","P")
       totest[, (toconvert) := lapply(.SD, as.numeric), .SDcols = toconvert]
       totest=totest[P<P_THRESHOLD,]
+           
       add=NULL
       if(nrow(totest)>0){
         gtxs=grs.summary(totest$mvbeta, totest$beta, totest$se, perpop)
-        add=data.table(model=suffix, PRS=p, target=p, nsnp=nrow(totest), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+        add=data.table(model=suffix, PRS=p, target=p, nsnp=nrow(totest), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
       }else{
         add=data.table(model=suffix, PRS=p, target=p, nsnp=0, method="indirect", cor=NA, Standard.Error=NA, P=NA, varex=NA)
       }
@@ -171,10 +164,14 @@ for(suffix in c("pn", "ln")){
       ## direct
       cat(paste("\t\t Ancestry-specific, direct method", p,"\n"))
       flush.console()
-      m=merge(tst[,c("SNP", p),with=F], target, by.x="SNP", by.y="rs")
-      m=merge(m, mvmeta[,c("SNP", "V2"), with=F],by="SNP")
+      m=merge(tst[,c("SNP", p),with=F], mvmeta[,c("SNP", "V2"), with=F],by="SNP")
       setnames(m, "V2", "P")
       m=m[P<P_THRESHOLD,]
+      #Select those snps in bed matrix
+      target.bm.select <- select.snps(target.bm, id %in% m$SNP)
+      target=cbind(target.bm.select@snps$id, as.data.table(abs(2-t(as.matrix(target.bm.select))))) #Have to change alleles because alleles are flipped
+      m=merge(m, target, by.x="SNP", by.y="V1")
+
       add=NULL
       if(nrow(m)>0){
         toconvert=p
@@ -194,6 +191,7 @@ for(suffix in c("pn", "ln")){
       }
       resul=rbindlist(list(resul, add), use.names=T)
   }
+
 
   for (angroup in c("AFR", "AMR", "EAS", "EUR", "SAS", "TE")){
       cat(paste("Processing score from ", angroup,"\n"))
@@ -217,11 +215,18 @@ for(suffix in c("pn", "ln")){
       }
       else{
         for(p in unique(nmtbl$V1)){
+            if(file.exists(paste0(indir,"/",p,".target.",suffix,".qassoc"))){
+                popdat=fread(paste0(indir,"/",p,".target.",suffix,".qassoc"),select=c("SNP","BETA" ,"SE"))
+            }
             ### Exact method corr with phenotype
             cat(paste("\t Using target population", p,"\n"))
             cat(paste("\t\t Direct method", p,"\n"))
             flush.console()
-            m=merge(ancmeta, target, by.x="RSID", by.y="rs")
+             #Select those snps in bed matrix
+            target.bm.select <- select.snps(target.bm, id %in% ancmeta$RSID)
+            target=cbind(target.bm.select@snps$id, as.data.table(abs(2-t(as.matrix(target.bm.select)))))
+            
+            m=merge(ancmeta, target, by.x="RSID", by.y="V1")
             popcol=colnames(target)[grep(p, colnames(target))]
             if(!length(popcol)){next}
             prs=t(m[,lapply(.SD, function(x){sum(BETA_FE*x)}), .SDcols=popcol])
@@ -245,9 +250,9 @@ for(suffix in c("pn", "ln")){
               perpop=tosimulate/POPPERSUP
             }
 
-            ancmeta.pop=merge(ancmeta, popdat[[p]], all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
+            ancmeta.pop=merge(ancmeta, popdat, all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
             gtxs=grs.summary(ancmeta.pop$BETA_FE, ancmeta.pop$BETA, ancmeta.pop$SE, perpop)
-            add=data.table(model=suffix, PRS=angroup, target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=gtxs$ahat[1], Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
+            add=data.table(model=suffix, PRS=angroup, target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2m[1])
             resul=rbindlist(list(resul, add), use.names=T)
 
       }
