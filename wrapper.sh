@@ -71,9 +71,9 @@ done
 ./makemeta.R $(pwd) .target
 for f in `ls metasoft.*.txt`; do cp $f $f.bak; awk 'NR>1' $f | sponge $f; done
 
-for p in AFR AMR EAS EUR SAS TE; do java -jar /lustre/groups/itg/teams/zeggini/projects/treps/runs_ozvan/Metasoft.jar -input metasoft.$p.pn.txt -pvalue_table /lustre/groups/itg/teams/zeggini/projects/treps/runs_ozvan/HanEskinPvalueTable.txt -output metasoft.$p.pn.out; done
-for p in AFR AMR EAS EUR SAS TE; do java -jar /lustre/groups/itg/teams/zeggini/projects/treps/runs_ozvan/Metasoft.jar -input metasoft.$p.ln.txt -pvalue_table /lustre/groups/itg/teams/zeggini/projects/treps/runs_ozvan/HanEskinPvalueTable.txt -output metasoft.$p.ln.out; done
-for p in AFR AMR EAS EUR SAS TE; do java -jar /lustre/groups/itg/teams/zeggini/projects/treps/runs_ozvan/Metasoft.jar -input metasoft.$p.Wu.txt -pvalue_table /lustre/groups/itg/teams/zeggini/projects/treps/runs_ozvan/HanEskinPvalueTable.txt -output metasoft.$p.Wu.out; done
+for p in AFR AMR EAS EUR SAS TE; do java -jar /Metasoft.jar -input metasoft.$p.pn.txt -pvalue_table /HanEskinPvalueTable.txt -output metasoft.$p.pn.out; done
+for p in AFR AMR EAS EUR SAS TE; do java -jar /Metasoft.jar -input metasoft.$p.ln.txt -pvalue_table /HanEskinPvalueTable.txt -output metasoft.$p.ln.out; done
+for p in AFR AMR EAS EUR SAS TE; do java -jar /Metasoft.jar -input metasoft.$p.Wu.txt -pvalue_table /HanEskinPvalueTable.txt -output metasoft.$p.Wu.out; done
 
 ./mvmeta.R
 
@@ -84,7 +84,7 @@ done
 
 #the metasoft.out files have garbage columns at the end (and spelling mistakes in col names)
 for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
-./processmeta.r -p $pthr -a $anc -s $n -i $baseout -o snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.out
+./processmeta.R -p $pthr -a $anc -s $n -i $baseout -o snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.out
 
 if [[ "$SAVEFILE" == "yes" ]]; then
 tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
