@@ -26,7 +26,7 @@ fi
 
 echo Current directory $(pwd), set SCRATCH env var to change.
 mkdir -p results/all_iter
-mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout && cp -r ../../treps/* .
+mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout && cp -r /treps/* .
 
 
 if [[ "$SAVEFILE" == "yes" ]]; then
