@@ -4,7 +4,8 @@ args=commandArgs(T)
 
 midfix=args[2]
 dir=args[1]
-for(suffix in c("pn", "ln", "Wu")){
+models=if(args[3]=="all") c("pn", "ln", "Wu") else "ln"
+for(suffix in models){
     ftoread=list.files(dir, paste0(midfix, ".", suffix,".qassoc$"))
     pops=sub(paste0(midfix, ".", suffix, ".qassoc"), "", ftoread, fixed=T)
 

@@ -16,9 +16,11 @@ option_list = list(
               help="Comma-separated list of proportions to simulate from each ancestry group. Should be a vector of 5 probabilities and sum to 1. Alternatively, if this is only 1 probability, it is assumed to mean the proportion of EUR.", metavar="character"),
   make_option(c("-p", "--p-thresh"), type="numeric", default=NULL,
               help="P-value threshold at which to select SNPs for inclusion in the PRS.", metavar="numeric"),
+  make_option(c("-m", "--model"), type="character", default=NULL,
+              help="Run only the log-normal model ('ln') or the log-normal, point-normal and frequency-dependent models ('all')", metavar="character"),
   make_option(c("-i", "--infile"), type="character", default=NULL,
               help="Base file input, .target.add.traw and .target.fam expected.", metavar="character"),
-    make_option(c("-o", "--out"), type="character",
+  make_option(c("-o", "--out"), type="character",
               help="output file prefix.", metavar="character")
 );
 
@@ -27,6 +29,7 @@ opt = parse_args(opt_parser);
 if (is.null(opt[["num-samples"]]) |
     is.null(opt[["anc-af-distr"]]) |
     is.null(opt[["p-thresh"]]) |
+    is.null(opt[["model"]]) |
     is.null(opt[["infile"]]) |
     is.null(opt[["out"]])
   ) {
@@ -102,7 +105,8 @@ print(anc.distr)
 
 ### MAIN
 resul=NULL
-for(suffix in c("pn", "ln", "Wu")){
+models=if(opt[["model"]]=="all") c("pn", "ln", "Wu") else "ln"
+for(suffix in models){
   if(suffix=="pn"){cat(paste("Pointnormal model\n"))}
   if(suffix=="ln"){cat(paste("Lognormal model\n"))}
   if(suffix=="Wu"){cat(paste("Frequency-dependent model\n"))}

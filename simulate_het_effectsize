@@ -1,0 +1,453 @@
+#!/usr/bin/env  Rscript
+library("optparse")
+library(data.table)
+library(this.path)
+library(gaston)
+library(Ravages)
+library(gaston.utils)
+options(warn=1)
+calldir=dirname(this.path())
+check_anc_distr=function(anc.distr){
+    if(length(anc.distr)==1){
+        if(anc.distr>1 | anc.distr<0){stop(paste("Proportion of Europeans (",anc.distr,") is out of bounds."))}
+        eur=anc.distr
+        anc.distr=rep((1-anc.distr)/4, 4)
+        anc.distr=c(anc.distr[1:3], eur, anc.distr[4])
+    }
+    else{
+        if(sum(anc.distr)!=1 | any(anc.distr>1) | any(anc.distr<0) |length(anc.distr)!=5){
+            stop(paste("Ancestry distribution should be a vector of 5 probabilities summing to 1.\nYou provided",
+                      paste(anc.distr, collapse=" + "), "=", sum(anc.distr)))
+        }
+    }
+    return(anc.distr)
+}
+
+sim_genos= function(af, n){
+    genos=as.data.table(t(as.data.table(lapply(unlist(af), function(x){
+        p=x;
+        q=1-x;
+        sample(0:2, n, prob=c(q*q, 2*p*q, p*p), replace=T)}))))
+    sgenos=genos[,lapply(.SD, function(x){(x-2*af)/sqrt(2*af*(1-af))})]
+    return(list(genos, sgenos))
+}
+
+sim_genos_bedmatrix= function(af, n, genos){
+    sapply(1:nrow(af), function(x){
+        tmpgenos = sapply(1:ncol(af), function(subpop){
+          p=af[x, ..subpop];
+          q=1-af[x, ..subpop];
+          sample(0:2, n, prob=c(q*q, 2*p*q, p*p), replace=T)})
+        snp.modif(genos, x-1, as.vector(tmpgenos))})
+}
+
+get.genos.weights <- function(weight.vec.list, x, af){
+    g <- lapply(colnames(af), function(pop){
+        x.tmp <- select.inds(x, grepl(id, pattern=pop))
+        x.tmp.mat <- as.matrix(x.tmp)
+        x.tmp.mat <- sapply(1:nrow(af), function(z) (x.tmp.mat[,z]-as.numeric(af[z,..pop]))/sqrt(2*as.numeric(af[z,..pop])*(1-as.numeric(af[z,..pop]))))
+        lapply(weight.vec.list, function(model) x.tmp.mat %*% model)
+        })
+    return(g)
+}
+
+inform=function(...){
+    cat(paste("[INFO]", ..., "\n", collapse=" "))
+    flush.console()
+}
+
+simulate_pointnormal=function(n.variants, her, n.samples, prop.heter, GW, anc.distr, outfn, nodump){
+    TOTNUMPOP=5
+    anc.distr=check_anc_distr(anc.distr)
+    if(her>1 | her <= 0){stop(paste("Heritability (", her, ") is out of bounds."))}
+    if(prop.heter>1 | prop.heter < 0){stop(paste("Proportion of heterogeneous effect sizes (", prop.heter, ") is out of bounds."))}
+    if(n.variants <= 0){stop(paste("Number of variants (", n.variants, ") is negative or null."))}
+    if(n.samples <= 0){stop(paste("Number of samples (", n.variants, ") is negative or null."))}
+
+    M.snp.het=n.variants*prop.heter
+    if(M.snp.het%%1 != 0){
+      #the proportion does not yield int number of SNPs, we change it to the closest divisor
+      newM=round(M.snp.het)
+      prop.heter=newM/n.variants
+      inform("Warning: the proportions selected produce", M.snp.het, "variants. Using prop heter =", prop.heter, "instead, giving", newM)
+      M.snp.het=newM
+    }
+
+    # the real number of variants we will need: now corresponds to the given number of variants
+    M=n.variants
+    inform("Simulating", M, "variants with proportion heterogeneous", prop.heter)
+
+    inform("Reading 1000 Genomes frequencies and sampling randomly ...")
+    kgfreq=fread(paste0(calldir, "/1000GP_Phase3_freq.txt"))
+    kgfreq=as.matrix(kgfreq)
+    kgfreq[kgfreq>0.5]=1-kgfreq[kgfreq>0.5]
+    #Populations
+    POPPERSUP=ncol(kgfreq)/TOTNUMPOP
+    kg.pop <- data.frame(subpop=colnames(kgfreq), pop = rep(c("AFR", "AMR", "EAS", "EUR", "SAS"), each = POPPERSUP))
+    kgfreq=as.data.table(kgfreq)
+    toselect=sample(nrow(kgfreq), M)
+    if(GW) toselect.noncausal=sample(nrow(kgfreq), 1e6-M)
+    inform("Done (", M, ").")
+	  #Name for saving the data
+	  if(GW){ 
+  	    chr.list <- sort(sample(1:22, 1e6, replace = T))
+  		  pos.list <- sample(1:10000000, 1e6)
+  	}else{
+	      chr.list <- sort(sample(1:22, M, replace = T))
+  		  pos.list <- sample(1:10000000, M)
+    }
+
+    # the first (1-p)n SNPs will be non-heterogeneous
+    M.snp.hom=round((1-prop.heter)*n.variants)
+    snp.hom=toselect[1:M.snp.hom]
+    afcoef=rep(anc.distr/POPPERSUP, each=POPPERSUP)
+    snp.hom.maf=apply(kgfreq[snp.hom], 1, function(x){sum(afcoef*x)})
+
+    # pointnormal effect sizes
+    betas.homogenous.norm=rnorm(snp.hom.maf)
+    sum.beta2=sum(betas.homogenous.norm*betas.homogenous.norm)
+    coef=sqrt((1-prop.heter)*her/sum.beta2)
+    betas.homogenous.norm=coef*betas.homogenous.norm
+
+    #lognormal effect sizes
+    ln.sigma=0.8
+    ln.mu=-log10(M.snp.hom)
+    ln.beta2=10^(rnorm(M.snp.hom, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
+    ln.beta2=ln.beta2*(1-prop.heter)*her/sum(ln.beta2)
+    beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.hom,replace=T)
+    all.snp.maf=snp.hom.maf
+    all.snp.beta=betas.homogenous.norm
+    beta.ln.hom=beta.ln
+    all.snp.beta.ln=beta.ln
+    
+    ## Frequency-dependent model
+    betas.Wu=0.4*abs(log10(snp.hom.maf))
+    #standardise with frequencies
+    betas.Wu.norm = betas.Wu*sqrt(2*snp.hom.maf*(1-snp.hom.maf))
+    #Adjust on h2
+    sum.beta.Wu2=sum(betas.Wu.norm*betas.Wu.norm)
+    coef.Wu=sqrt((1-prop.heter)*her/sum.beta.Wu2)
+    betas.hom.Wu.norm=coef.Wu*betas.Wu.norm
+    betas.hom.Wu.norm = betas.hom.Wu.norm*sample(c(1,-1), M.snp.hom,replace=T)
+    all.snp.beta.Wu = betas.hom.Wu.norm
+
+    POPPERSUP=ncol(kgfreq)/TOTNUMPOP
+    beta.matrix=NULL
+    beta.matrix.ln=NULL
+    beta.allelic=NULL
+    beta.allelic.ln=NULL 
+    beta.allelic.Wu=NULL
+    beta.matrix.Wu=NULL
+    snp.het=numeric(0)
+    if(M.snp.het>0){
+      snp.het=toselect[(M.snp.hom+1):M]
+    }
+    for(i in 0:(TOTNUMPOP-1)){
+      all.snp.maf=c(snp.hom.maf, apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean))
+      
+      snp.het.maf=apply(kgfreq[snp.het,(POPPERSUP*i+1):(POPPERSUP*(i+1))], 1, mean)
+
+      #pointnormal model
+      betas.het.norm=rnorm(M.snp.het)
+      sum.beta2=sum(betas.het.norm*betas.het.norm)
+      coef=sqrt(prop.heter*her/sum.beta2)
+      betas.het.norm=coef*betas.het.norm
+
+      ## lognormal model
+      ln.mu=-log10(M.snp.het)
+      ln.beta2=10^(rnorm(M.snp.het, mean=ln.mu-ln.sigma*ln.sigma, sd=ln.sigma))
+      ln.beta2=ln.beta2*prop.heter*her/sum(ln.beta2)
+      beta.ln=sqrt(ln.beta2)*sample(c(1,-1), M.snp.het,replace=T)
+      beta.ln.het=beta.ln
+      
+      ## Frequency-dependent model
+      betas.Wu=0.4*abs(log10(snp.het.maf))
+      #standardise with frequencies
+      betas.Wu.norm = betas.Wu*sqrt(2*snp.het.maf*(1-snp.het.maf))
+      #Adjust on h2
+      sum.beta.Wu2=sum(betas.Wu.norm*betas.Wu.norm)
+      coef.Wu=sqrt(prop.heter*her/sum.beta.Wu2)
+      betas.het.Wu.norm=coef.Wu*betas.Wu.norm
+      betas.het.Wu.norm = betas.het.Wu.norm*sample(c(1,-1), M.snp.het,replace=T)
+
+      #all.snp.maf=c(all.snp.maf, snp.het.maf)
+      all.snp.beta=c(all.snp.beta, betas.het.norm)
+      all.snp.beta.ln=c(all.snp.beta.ln, beta.ln)
+      all.snp.beta.Wu=c(all.snp.beta.Wu, betas.het.Wu.norm)
+
+      inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
+             mean(c(betas.homogenous.norm, betas.het.norm)), "\ttotal heritability explained (pointnormal):", var(c(betas.homogenous.norm, betas.het.norm))*n.variants)
+      inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
+                    mean(all.snp.beta.ln), "\ttotal heritability explained (lognormal):", var(all.snp.beta.ln)*n.variants)
+      inform("Simulation for populations",POPPERSUP*i+1 ,"to",POPPERSUP*(i+1),"\t: Mean",
+                    mean(all.snp.beta.Wu), "\ttotal heritability explained (Wu):", var(all.snp.beta.Wu)*n.variants)
+
+      betavec=c(betas.homogenous.norm, betas.het.norm)
+      betavec.ln=c(beta.ln.hom, beta.ln.het)
+      betavec.Wu=c(betas.hom.Wu.norm, betas.het.Wu.norm)
+      if(is.null(beta.matrix)){beta.matrix=data.table(betavec)}else{
+          beta.matrix=cbind(beta.matrix, betavec)
+          }
+      
+      #beta.allelic=setDT(lapply(beta.matrix, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
+      if(is.null(beta.allelic)){beta.allelic=data.table(betavec/sqrt(2*all.snp.maf*(1-all.snp.maf)))}else{
+          beta.allelic=cbind(beta.allelic, betavec/sqrt(2*all.snp.maf*(1-all.snp.maf)))
+          }
+      beta.allelic=as.matrix(beta.allelic)
+      beta.matrix=as.matrix(beta.matrix)
+
+      if(is.null(beta.matrix.ln)){beta.matrix.ln=data.table(betavec.ln)}else{
+          beta.matrix.ln=cbind(beta.matrix.ln, betavec.ln)
+          }
+
+          print(dim(beta.matrix.ln))
+     
+      #beta.allelic.ln=setDT(lapply(beta.matrix.ln, function(x){x/sqrt(2*all.snp.maf*(1-all.snp.maf))}))
+      if(is.null(beta.allelic.ln)){beta.allelic.ln=data.table(betavec.ln/sqrt(2*all.snp.maf*(1-all.snp.maf)))}else{
+          beta.allelic.ln=cbind(beta.allelic.ln, betavec.ln/sqrt(2*all.snp.maf*(1-all.snp.maf)))
+          }
+      beta.matrix.ln=as.matrix(beta.matrix.ln)
+      beta.allelic.ln=as.matrix(beta.allelic.ln)
+    
+      if(is.null(beta.matrix.Wu)){beta.matrix.Wu=data.table(betavec.Wu)}else{
+          beta.matrix.Wu=cbind(beta.matrix.Wu, betavec.Wu)
+          }
+
+      if(is.null(beta.allelic.Wu)){beta.allelic.Wu=data.table(betavec.Wu/sqrt(2*all.snp.maf*(1-all.snp.maf)))}else{
+          beta.allelic.Wu=cbind(beta.allelic.Wu, betavec.Wu/sqrt(2*all.snp.maf*(1-all.snp.maf)))
+          }
+      beta.matrix.Wu=as.matrix(beta.matrix.Wu)
+      beta.allelic.Wu=as.matrix(beta.allelic.Wu)
+    }
+      
+
+    gi=NULL
+    gi.ln=NULL
+    gi.Wu=NULL
+    ph=NULL;
+    ph.ln=NULL
+    ph.Wu=NULL
+	  snames.all=NULL
+    for(i in 1:ncol(beta.matrix)){
+        ## total number per ancestry group
+        tosimulate=anc.distr[i]*n.samples
+        if(tosimulate>0){
+          ## equal number of samples per pop within group
+          perpop=round(tosimulate/POPPERSUP)
+          gc()
+          snames=paste("SAMPLE", unlist(lapply(rep(perpop, POPPERSUP), function(x){1:x})), rep(colnames(kgfreq[,(POPPERSUP*(i-1)+1):(POPPERSUP*i)]), rep(perpop, POPPERSUP)), sep=".")
+          genos <- Ravages:::new.bed.matrix(nb_inds = perpop*POPPERSUP, nb_snps = length(toselect))
+          suppressMessages(sim_genos_bedmatrix(setDT(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)]), perpop, genos))
+          suppressMessages(genos <- set.stats(genos))
+          genos@ped$id <- genos@ped$famid <- snames
+          weight.vec.list = list(pn=beta.matrix[,i, drop = F], ln = beta.matrix.ln[,i, drop = F], Wu=beta.matrix.Wu[,i, drop = F])
+          gg = get.genos.weights(weight.vec.list, genos, af=kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)])
+          g = unlist(lapply(gg, function(z) z$pn))
+          g.ln = unlist(lapply(gg, function(z) z$ln))
+          g.Wu = unlist(lapply(gg, function(z) z$Wu))
+          gi=c(gi,g)
+          gi.ln=c(gi.ln,g.ln)
+          gi.Wu=c(gi.Wu,g.Wu)
+
+          inform("variance in the genetic component of the phenotype for ancestry group",i,"(pointnormal) is", var(g), ", should be equal to heritability.")
+          inform("variance in the genetic component of the phenotype for ancestry group",i,"(lognormal) is", var(g.ln), ", should be equal to heritability.")
+          inform("variance in the genetic component of the phenotype for ancestry group",i,"(Wu) is", var(g.Wu), ", should be equal to heritability.")
+          phi=g+rnorm(length(g), mean=0, sd=sqrt(1-(var(g))))
+          phi.ln=g.ln+rnorm(length(g.ln), mean=0, sd=sqrt(1-(var(g.ln))))
+          phi.Wu=g.Wu+rnorm(length(g.Wu), mean=0, sd=sqrt(1-(var(g.Wu))))
+          inform("Variance of the simulated phenotype for ancestry group",i,"(pointnormal) is", var(phi), "which should be close to 1.")
+          inform("Variance of the simulated phenotype for ancestry group",i,"(lognormal) is", var(phi.ln), "which should be close to 1.")
+          inform("Variance of the simulated phenotype for ancestry group",i,"(Wu) is", var(phi.Wu), "which should be close to 1.")
+          snpnames=paste0("rs", 1:nrow(genos@snps))
+  	    	if(GW){
+            inform("Simulation of", length(toselect.noncausal), "non-causal variants")
+            genos.neutral <- Ravages:::new.bed.matrix(nb_inds = perpop*POPPERSUP, nb_snps = length(toselect.noncausal)) 
+            suppressMessages(sim_genos_bedmatrix(setDT(kgfreq[toselect.noncausal,(POPPERSUP*(i-1)+1):(POPPERSUP*i)]), perpop, genos.neutral))
+            suppressMessages(genos.neutral <- set.stats(genos.neutral))
+            
+            snpnames=c(snpnames, paste0("rs", (nrow(genos@snps)+1):(nrow(genos.neutral@snps)+nrow(genos@snps))))
+            genos@ped$id <- genos@ped$famid <- genos.neutral@ped$id <- genos.neutral@ped$famid <- snames
+            genos = cbind(genos, genos.neutral)
+          }
+          genos@snps$A1 <- "A" ; genos@snps$A2 <- "G"
+          genos@snps$chr <- chr.list
+          genos@snps$id <- snpnames
+          genos@snps$dist <- 0
+          genos@snps$pos <- pos.list
+    
+  	      #Save the genetic data
+	      	inform("Writing bedmatrix...")
+          write.bed.matrix(genos, basename=paste0(outfn, ".", unique(kg.pop$pop)[i]))
+          
+          #Save the phenotypes
+          inform("Writing fam (pointnormal)...")
+          fwrite(
+              data.table(FID=snames,
+                         IID=snames,
+                         rep(0, length(snames)),
+                         rep(0, length(snames)),
+                         sample(1:2, length(snames), replace=T),
+                         phi), paste0(outfn, ".", unique(kg.pop$pop)[i], ".pn.fam"), sep="\t", col.names=F, quote=F)
+           inform("Writing fam (lognormal)...")
+           fwrite(
+               data.table(FID=snames,
+                          IID=snames,
+                          rep(0, length(snames)),
+                          rep(0, length(snames)),
+                          sample(1:2, length(snames), replace=T),
+                          phi.ln), paste0(outfn, ".", unique(kg.pop$pop)[i], ".ln.fam"), sep="\t", col.names=F, quote=F)
+           inform("Writing fam (Wu model)...")
+           fwrite(
+               data.table(FID=snames,
+                          IID=snames,
+                          rep(0, length(snames)),
+                          rep(0, length(snames)),
+                          sample(1:2, length(snames), replace=T),
+                          phi.Wu), paste0(outfn, ".", unique(kg.pop$pop)[i], ".Wu.fam"), sep="\t", col.names=F, quote=F)
+          inform("Done.")
+        
+          gc()
+      }
+	  }
+	
+    inform("Writing betas...")
+    if(!nodump){save(snpnames, beta.matrix, beta.matrix.ln, beta.matrix.Wu, beta.allelic, beta.allelic.ln, beta.allelic.Wu, kgfreq, toselect, M.snp.hom, M.snp.het, file = paste0(outfn, ".beta.rdata"))}
+    
+    gc()
+   
+    
+    inform ("Repeating for an equal number of test samples...")
+    gi=NULL
+    gi.ln=NULL
+    gi.Wu=NULL
+    ph=NULL
+    ph.ln=NULL
+    ph.Wu=NULL
+    pp.towrite=NULL
+    popdict=c("AFR", "AMR", "EAS", "EUR", "SAS")
+    snames.all = NULL
+    for(i in 1:ncol(beta.matrix)){
+        ## total number per ancestry group
+        tosimulate=anc.distr[i]*n.samples
+        if(tosimulate>0){
+          ## equal number of samples per pop within group
+          perpop=round(tosimulate/POPPERSUP)
+          pp.towrite=c(pp.towrite, perpop)
+          names(pp.towrite)[length(pp.towrite)]=popdict[i]
+          gc()
+          snames=paste("SAMPLE", unlist(lapply(rep(perpop, POPPERSUP), function(x){1:x})), rep(colnames(kgfreq[,(POPPERSUP*(i-1)+1):(POPPERSUP*i)]), each=perpop), sep=".")
+          genos <- Ravages:::new.bed.matrix(nb_inds = perpop*POPPERSUP, nb_snps = length(toselect))
+          suppressMessages(sim_genos_bedmatrix(setDT(kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)]), perpop, genos))
+          suppressMessages(genos <- set.stats(genos))
+          genos@ped$id <- genos@ped$famid <- snames
+          weight.vec.list = list(pn=beta.matrix[,i, drop = F], ln = beta.matrix.ln[,i, drop = F], Wu=beta.matrix.Wu[,i, drop = F])
+          gg = get.genos.weights(weight.vec.list, genos, af=kgfreq[toselect,(POPPERSUP*(i-1)+1):(POPPERSUP*i)])
+          g = unlist(lapply(gg, function(z) z$pn))
+          g.ln = unlist(lapply(gg, function(z) z$ln))
+          g.Wu = unlist(lapply(gg, function(z) z$Wu))
+          gi=c(gi,g)
+          gi.ln=c(gi.ln,g.ln)
+          gi.Wu=c(gi.Wu,g.Wu)
+                  
+          inform("variance in the genetic component of the phenotype for ancestry group",i,"is", var(g), ", should be equal to heritability.")
+          inform("variance in the genetic component of the phenotype for ancestry group",i,"(lognormal) is", var(g.ln), ", should be equal to heritability.")
+          inform("variance in the genetic component of the phenotype for ancestry group",i,"(Wu) is", var(g.Wu), ", should be equal to heritability.")
+
+          phi=g+rnorm(length(g), mean=0, sd=sqrt(1-(var(g))))
+          phi.ln=g.ln+rnorm(length(g.ln), mean=0, sd=sqrt(1-(var(g.ln))))
+          phi.Wu=g.Wu+rnorm(length(g.Wu), mean=0, sd=sqrt(1-(var(g.Wu))))
+  
+          inform("Variance of the simulated phenotype for ancestry group",i,"(pointnormal) is", var(phi), "which should be close to 1.")
+          inform("Variance of the simulated phenotype for ancestry group",i,"(lognormal) is", var(phi.ln), "which should be close to 1.")
+          inform("Variance of the simulated phenotype for ancestry group",i,"(Wu) is", var(phi.Wu), "which should be close to 1.")
+
+            if(GW){
+            inform("Simulation of", length(toselect.noncausal), "non-causal variants")
+            genos.neutral <- Ravages:::new.bed.matrix(nb_inds = perpop*POPPERSUP, nb_snps = length(toselect.noncausal)) 
+            suppressMessages(sim_genos_bedmatrix(setDT(kgfreq[toselect.noncausal,(POPPERSUP*(i-1)+1):(POPPERSUP*i)]), perpop, genos.neutral))
+            suppressMessages(genos.neutral <- set.stats(genos.neutral))
+          
+            genos@ped$id <- genos@ped$famid <- genos.neutral@ped$id <- genos.neutral@ped$famid <- snames
+            genos = cbind(genos, genos.neutral)
+          }
+          genos@snps$A1 <- "A" ; genos@snps$A2 <- "G"
+          genos@snps$chr <- chr.list
+          genos@snps$id <- snpnames
+          genos@snps$dist <- 0
+          genos@snps$pos <- pos.list
+    
+  	      #Save the genetic data
+	      	inform("Writing bedmatrix...")
+          write.bed.matrix(genos, basename=paste0(outfn, ".", unique(kg.pop$pop)[i], ".target"))
+        
+          #Save the phenotypes
+          fwrite(setDT(as.list(pp.towrite))[], "popsamples.txt", quote=F)
+          inform("Writing fam...")
+          fwrite(
+              data.table(FID=snames,
+                         IID=snames,
+                         rep(0, length(snames)),
+                         rep(0, length(snames)),
+                         sample(1:2, length(snames), replace=T),
+                         phi), paste0(outfn, ".", unique(kg.pop$pop)[i], ".target.pn.fam"), sep="\t", col.names=F, quote=F)
+                         inform("Writing fam (lognormal)...")
+         fwrite(
+             data.table(FID=snames,
+                        IID=snames,
+                        rep(0, length(snames)),
+                        rep(0, length(snames)),
+                        sample(1:2, length(snames), replace=T),
+                        phi.ln), paste0(outfn, ".", unique(kg.pop$pop)[i], ".target.ln.fam"), sep="\t", col.names=F, quote=F)
+                        inform("Writing fam (Wu model)...")
+         fwrite(
+             data.table(FID=snames,
+                        IID=snames,
+                        rep(0, length(snames)),
+                        rep(0, length(snames)),
+                        sample(1:2, length(snames), replace=T),
+                        phi.Wu), paste0(outfn, ".", unique(kg.pop$pop)[i], ".target.Wu.fam"), sep="\t", col.names=F, quote=F)
+
+          inform("Done.")
+        
+          gc()
+          
+        
+      }
+    }
+
+}
+
+option_list = list(
+  make_option(c("-n", "--num-variants"), type="integer", default=NULL,
+              help="Number of causal variants to simulate per cohort. The total number of variants simulated will be higher.", metavar="integer"),
+  make_option(c("-r", "--heritability"), type="numeric", default=NULL,
+                          help="Narrow-sense heritability of the simulated phenotype.", metavar="numeric"),
+  make_option(c("-s", "--num-samples"), type="integer", default=NULL,
+              help="Total number of samples to simulate.", metavar="integer"),
+  make_option(c("-p", "--prop-heter"), type="numeric", default=NULL,
+              help="Proportion of sites with heterogeneous effects. 1 - this proportion of variants will have the same effect across all populations.", metavar="numeric"),
+  make_option(c("-w", "--run-GW"), default=FALSE, help="Don't simulate data genome-wide, simulations are only performed for the n causal variants. Non-causal variants with no effect will otherwise be simulated."),
+  make_option(c("-a", "--anc-af-distr"), type="character", default=NULL,
+              help="Comma-separated list of proportions to simulate from each ancestry group. Should be a vector of 5 probabilities and sum to 1. Alternatively, if this is only 1 probability, it is assumed to mean the proportion of EUR.", metavar="character"),
+  make_option(c("-o", "--out"), type="character",
+              help="output file prefix.", metavar="character"),
+  make_option(c("-x", "--nodump"), action="store_true", default=FALSE, dest="nodump", help="Don't dump key variables to disk. They will otherwise be saved in a .rdata file.")
+
+);
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+if (is.null(opt[["num-variants"]]) |
+    is.null(opt[["heritability"]]) |
+    is.null(opt[["num-samples"]]) |
+    is.null(opt[["prop-heter"]]) |
+    is.null(opt[["anc-af-distr"]]) |
+    is.null(opt[["out"]])
+  ) {
+  print_help(opt_parser)
+  stop("All arguments are compulsory.\n", call.=FALSE)
+}
+
+ancdist=as.numeric(strsplit(opt[["anc-af-distr"]], ",", fixed=T)[[1]])
+
+simulate_pointnormal(opt[["num-variants"]], opt[["heritability"]], opt[["num-samples"]], opt[["prop-heter"]], opt[["run-GW"]], ancdist, opt[["out"]], opt[["nodump"]])
