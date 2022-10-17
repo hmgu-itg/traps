@@ -2,7 +2,6 @@
 model='ln'
 GW='FALSE'
 SAVEFILE='no'
-het_effectsize='FALSE'
 
 while getopts "S:H:n:h:a:b:p:gmes" opt; do
   case $opt in
@@ -60,7 +59,7 @@ fi
 
 echo Current directory $(pwd), set SCRATCH env var to change.
 mkdir -p results/all_iter
-mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout && cp -r /treps/* .
+mkdir -p tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout && cd tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout && cp -r /traps/* .
 
 
 if [[ "$SAVEFILE" == "yes" ]]; then
@@ -135,17 +134,17 @@ fi
 
 #the metasoft.out files have garbage columns at the end (and spelling mistakes in col names)
 for f in `ls metasoft.*.out`; do cut -f1-18 $f| sponge $f; done
-./processmeta.R -p $pthr -a $anc -s $n -m $model -i $baseout -o snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.out
+./processmeta.R -p $pthr -a $anc -s $n -m $model -i $baseout -o snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout.out
 
 if [[ "$SAVEFILE" == "yes" ]]; then
-tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
-cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.rundata.tar.bz2 ../../results/
+tar -cvjf snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout.rundata.tar.bz2  *fam *.log *.qassoc *.out metasoft.* mvmeta* $baseout.*
+cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout.rundata.tar.bz2 ../../results/
 fi
 
-gzip snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.*txt
-cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout.*txt.gz ../../results/
+gzip snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout.*txt
+cp snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout.*txt.gz ../../results/
 
 cd ../..
-rm -r tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.$baseout
+rm -r tempFiles/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.$baseout
 
 sleep 5
