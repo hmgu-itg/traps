@@ -1,5 +1,4 @@
 FROM ubuntu:20.04
-ARG GIT_ACCESS_TOKEN
 
 ## Setting Locale
 ENV TZ=Europe/Berlin
@@ -20,8 +19,10 @@ RUN add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-c
 RUN apt-get update
 RUN apt-get install -y unixodbc-dev
 RUN apt-get install -y r-base r-base-core
-RUN Rscript -e "install.packages(c('data.table', 'devtools', 'usethis'))"
-RUN Rscript -e "install.packages('sparklyr'); devtools::install_github('tobyjohnson/gtx')"
+RUN Rscript -e "install.packages(c('data.table', 'usethis'))"
+RUN apt-get install -y libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
+RUN Rscript -e "install.packages('devtools')"
+RUN Rscript -e "install.packages('sparklyr'); library(devtools); devtools::install_github('tobyjohnson/gtx')"
 RUN Rscript -e "install.packages(c('optparse', 'this.path'))"
 RUN Rscript -e "install.packages(c('RcppArmadillo', 'gaston', 'Ravages'))"
 RUN git clone https://github.com/genostats/gaston.utils
@@ -45,6 +46,7 @@ RUN unzip Metasoft.zip
 RUN apt install -y nano
 ARG CACHEBUST=9
 
+ARG GIT_ACCESS_TOKEN
 ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
 #RUN git config --global hub.protocol https
 #RUN git config --global url."https://${GIT_ACCESS_TOKEN}@github.com".insteadOf "ssh://git@github.com"
