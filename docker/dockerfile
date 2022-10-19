@@ -46,11 +46,8 @@ RUN unzip Metasoft.zip
 RUN apt install -y nano
 ARG CACHEBUST=9
 
-ARG GIT_ACCESS_TOKEN
-ENV GITHUB_TOKEN=${GIT_ACCESS_TOKEN}
 #RUN git config --global hub.protocol https
-#RUN git config --global url."https://${GIT_ACCESS_TOKEN}@github.com".insteadOf "ssh://git@github.com"
-RUN git clone https://Ozvan:${GIT_ACCESS_TOKEN}@github.com/hmgu-itg/traps
+RUN git clone https://github.com/hmgu-itg/traps
 WORKDIR /traps
 RUN wget -O 1kg.tar.gz https://hmgubox2.helmholtz-muenchen.de/index.php/s/YnGW48YJwoJyHYc/download
 RUN tar -xvzf 1kg.tar.gz

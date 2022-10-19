@@ -2,6 +2,7 @@
 model='ln'
 GW='FALSE'
 SAVEFILE='no'
+het_effectsize='FALSE'
 
 while getopts "S:H:n:h:a:b:p:gmes" opt; do
   case $opt in
