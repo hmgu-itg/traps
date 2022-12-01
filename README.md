@@ -54,15 +54,15 @@ Two object will be obtained: a `fullrundata.tar.gz` with the final performance e
 Here are some examples on how to run the simulations with 10 replicates. The `traps/` directory and the `traps.sif` singularity container should be in `mypath`. 
 500 causal SNPs, 50% heritabilitiy, 150000 individuals, no heterogeneity, 5 equal groups, using the log-normal model to simulate effect sizes:  
 ``
-wrapper_10iterations.sh -S 500 -H 0.5 -n 150000 -h 0 -a 0.2 -p 5e-8 -P mypath 
+wrapper_10replicates.sh -S 500 -H 0.5 -n 150000 -h 0 -a 0.2 -p 5e-8 -P mypath 
 ``   
 300 causal SNPs, 30% heritabilitiy, 150000 individuals, 10% heterogeneity in effect sizes, a given ancestry distribution, using the log-normal model to simulate effect sizes:   
 ``
-wrapper_10iterations.sh -S 300 -H 0.3 -n 150000 -h 0.1 -a 0.1,0.2,0.05,0.5,0.15 -p 5e-8 -P mypath -e
+wrapper_10replicates.sh -S 300 -H 0.3 -n 150000 -h 0.1 -a 0.1,0.2,0.05,0.5,0.15 -p 5e-8 -P mypath -e
 ``  
 1000 causal SNPs, 20% heritabilitiy, 20000 individuals, 20% heterogeneity in effect sizes, 80% EUR-ancestry individuals, using three models to simulate effect sizes and saving the intermediate files:   
 ``
-wrapper_10iterations.sh -S 1000 -H 0.2 -n 20000 -h 0.2 -a 0.8 -p 5e-8 -P mypath -m -s
+wrapper_10replicates.sh -S 1000 -H 0.2 -n 20000 -h 0.2 -a 0.8 -p 5e-8 -P mypath -m -s
 ``  
 
 # References
