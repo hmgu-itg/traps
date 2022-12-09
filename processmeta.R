@@ -203,13 +203,15 @@ for(suffix in models){
       ancmeta=fread(paste0(indir, "/metasoft.",angroup,".",suffix,".out"),
       select=c("RSID","PVALUE_FE" ,"BETA_FE", "PVALUE_RE2", "BETA_RE"))
       #FE and RE models
-      for(meta_model in c("FE", "RE")){ 
-        if(meta_model == "FE"){ pval_col <- "PVALUE_FE" ; beta_col <- "BETA_FE" }
-        if(meta_model == "RE"){ pval_col <- "PVALUE_RE2" ; beta_col <- "BETA_RE" }
-        tmpcol <- c("RSID", beta_col)
-        ancmeta_subset=subset(ancmeta, as.vector(ancmeta[,..pval_col]<P_THRESHOLD))[,..tmpcol]
-        cat(paste("Number of SNPs in PRS:",nrow(ancmeta_subset), "\n"))
-        if(nrow(ancmeta_subset)==0){
+      ancmeta_FE=ancmeta[PVALUE_FE<P_THRESHOLD,c("RSID", "BETA_FE")]
+      ancmeta_RE=ancmeta[PVALUE_RE2<P_THRESHOLD,c("RSID", "BETA_RE")]
+      colnames(ancmeta_FE) <- colnames(ancmeta_RE) <- c("RSID", "BETA_META")
+      ancmeta=list(FE = ancmeta_FE, RE = ancmeta_RE)
+      rm(ancmeta_FE, ancmeta_RE)
+      for(meta_model in c("FE", "RE")){
+        cat(paste("Number of SNPs in PRS :",nrow(ancmeta[[meta_model]]), "\n"))
+
+        if(nrow(ancmeta[[meta_model]])==0){
           add=data.table(target=unique(nmtbl$V1))
           add[,PRS:=paste(angroup, meta_model, sep = "_")]
           add[,model:=suffix]
@@ -232,15 +234,13 @@ for(suffix in models){
             cat(paste("\t\t Direct method", p, meta_model, "model\n"))
             flush.console()
              #Select those snps in bed matrix
-            target.bm.select <- select.snps(target.bm, id %in% ancmeta_subset$RSID)
+            target.bm.select <- select.snps(target.bm, id %in% ancmeta[[meta_model]]$RSID)
             target=cbind(target.bm.select@snps$id, as.data.table(abs(2-t(as.matrix(target.bm.select)))))
             
-            m=merge(ancmeta_subset, target, by.x="RSID", by.y="V1")
+            m=merge(ancmeta[[meta_model]], target, by.x="RSID", by.y="V1")
             popcol=colnames(target)[grep(p, colnames(target))]
             if(!length(popcol)){next}
-            options(warn=-1)
-            prs=t(m[,lapply(.SD, function(x){sum(m[,..beta_col]*x)}), .SDcols=popcol]) #Warning which is due to passing a variable but actually gives to right results
-            options(warn=0)
+            prs=t(m[,lapply(.SD, function(x){sum(BETA_META*x)}), .SDcols=popcol]) 
             prs=data.table(id=rownames(prs), prs=prs)
             prs=merge(prs, ttfam, by.x="id", by.y="V1")
             add=cor.test.plus(prs$prs.V1, prs$V6)
@@ -261,9 +261,9 @@ for(suffix in models){
               perpop=tosimulate/POPPERSUP
             }
 
-            ancmeta_subset.pop=merge(ancmeta_subset, popdat, all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
-            gtxs=grs.summary(unlist(ancmeta_subset.pop[,..beta_col]), ancmeta_subset.pop$BETA, ancmeta_subset.pop$SE, perpop)
-            add=data.table(model=suffix, PRS=paste(angroup, meta_model, sep = "_"), target=p, nsnp=nrow(ancmeta_subset.pop), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2rs[1])
+            ancmeta.pop=merge(ancmeta[[meta_model]], popdat, all.x=T, by.x="RSID", by.y="SNP", suffixes = c("", paste0(".", p)))
+            gtxs=grs.summary(unlist(ancmeta.pop$BETA_META), ancmeta.pop$BETA, ancmeta.pop$SE, perpop)
+            add=data.table(model=suffix, PRS=paste(angroup, meta_model, sep = "_"), target=p, nsnp=nrow(ancmeta.pop), method="indirect", cor=sqrt(gtxs$R2rs[1]), Standard.Error=gtxs$aSE[1], P=gtxs$pval[1], varex=gtxs$R2rs[1])
             resul=rbindlist(list(resul, add), use.names=T)
         }
 

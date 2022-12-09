@@ -4,7 +4,7 @@ GW='FALSE'
 SAVEFILE='no'
 het_effectsize='FALSE'
 
-while getopts "S:H:n:h:a:p:P:gmes" opt; do
+while getopts "S:H:n:h:a:p:T:P:gmes" opt; do
   case $opt in
     S) nsnp="$OPTARG" ;;
     H) her="$OPTARG" ;;
@@ -12,6 +12,7 @@ while getopts "S:H:n:h:a:p:P:gmes" opt; do
     h) propheter="$OPTARG" ;;
     a) anc="$OPTARG" ;;
     p) pthr="$OPTARG" ;;
+    T) traps_path="$OPTARG" ;; 
     P) mypath="$OPTARG" ;;
     g) GW='TRUE' ;;
     m) model='all' ;;
@@ -47,8 +48,11 @@ fi
 if [ -z "$pthr" ]; then
   echo 'Missing -p (p-value threshold)' >&2; exit 1
 fi
+if [ -z "$traps_path" ]; then
+  echo 'Missing -T (Path to bind to container)' >&2; exit 1
+fi
 if [ -z "$mypath" ]; then
-  echo 'Missing -P (Path to bind to container)' >&2; exit 1
+  echo 'Missing -P (Path to write the output files)' >&2; exit 1
 fi
 
 command_params="-S $nsnp -H $her -n $n -h $propheter -a $anc -p $pthr"
@@ -68,7 +72,10 @@ fi
 
 for i in {1..10}; do
   command_torun=$(echo $command_params " -b iter$i")
-  eval $(singularity exec -B $mypath $mypath/traps.sif $mypath/traps/wrapper.sh $command_torun)
+  FILE=$mypath/results/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.iter$i.out.prs.fit.txt.gz
+  if [[ ! -f "$FILE" ]]; then
+    eval $(singularity exec -B $mypath -B $traps_path $traps_path/traps.sif $traps_path/traps/wrapper.sh $command_torun)
+  fi
 done
 
 cat <(echo -e "nsnp\ther\tsamples\tpropheter\tanc\tpthr\tGW\titer\tmodel\tPRS\ttarget\tnsnp_inPRS\tmethod\tcor\tStandard.Error\tP\tvarex") <(for i in {1..10}; do zcat $mypath/results/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.iter$i.out.prs.fit.txt.gz |tail -n+2 | while read l; do echo -e "$nsnp\t$her\t$n\t$propheter\t$anc\t$pthr\t$GW\t$i\t$l";done;done) | gzip > $mypath/results/snp$nsnp.her$her.heter$propheter.anc$anc.p$pthr.GW$GW.model$model.hetES$het_effectsize.fullrun.out.gz
