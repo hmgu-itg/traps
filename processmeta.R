@@ -247,7 +247,7 @@ for(suffix in models){
             add$model=suffix
             add$PRS=paste(angroup, meta_model, sep = "_") 
             add$target=p
-            add$nsnp=nrow(ancmeta_subset)
+            add$nsnp=nrow(ancmeta)
             add$method="direct"
             add$varex=add$cor*add$cor
             if(is.null(resul)){resul=add}else{resul=rbindlist(list(resul,add), use.names=T)}
